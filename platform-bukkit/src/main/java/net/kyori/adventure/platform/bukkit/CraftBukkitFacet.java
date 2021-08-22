@@ -28,7 +28,6 @@ import io.netty.buffer.Unpooled;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -55,6 +54,7 @@ import net.kyori.adventure.nbt.ListBinaryTag;
 import net.kyori.adventure.nbt.StringBinaryTag;
 import net.kyori.adventure.platform.facet.Facet;
 import net.kyori.adventure.platform.facet.FacetBase;
+import net.kyori.adventure.platform.nms.accessors.*;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.serializer.craftbukkit.MinecraftComponentSerializer;
@@ -89,7 +89,6 @@ import static net.kyori.adventure.text.serializer.craftbukkit.BukkitComponentSer
 import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findCraftClass;
 import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findEnum;
 import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findField;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findMcClass;
 import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findMcClassName;
 import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findMethod;
 import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findNmsClass;
@@ -97,7 +96,6 @@ import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflectio
 import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findSetterOf;
 import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findStaticMethod;
 import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.lookup;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.needClass;
 import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.needField;
 
 class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
@@ -110,10 +108,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     return super.isSupported() && SUPPORTED;
   }
 
-  private static final Class<?> CLASS_NMS_ENTITY = findClass(
-    findNmsClassName("Entity"),
-    findMcClassName("world.entity.Entity")
-  );
+  private static final Class<?> CLASS_NMS_ENTITY = EntityAccessor.getType();
   private static final Class<?> CLASS_CRAFT_ENTITY = findCraftClass("entity.CraftEntity");
   private static final MethodHandle CRAFT_ENTITY_GET_HANDLE = findMethod(CLASS_CRAFT_ENTITY, "getHandle", CLASS_NMS_ENTITY);
   static final @Nullable Class<? extends Player> CLASS_CRAFT_PLAYER = findCraftClass("entity.CraftPlayer", Player.class);
@@ -123,10 +118,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
   static {
     final Class<?> craftPlayerClass = findCraftClass("entity.CraftPlayer");
-    final Class<?> packetClass = findClass(
-      findNmsClassName("Packet"),
-      findMcClassName("network.protocol.Packet")
-    );
+    final Class<?> packetClass = PacketAccessor.getType();
 
     MethodHandle craftPlayerGetHandle = null;
     MethodHandle entityPlayerGetConnection = null;
@@ -136,28 +128,21 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
         final Method getHandleMethod = craftPlayerClass.getMethod("getHandle");
         final Class<?> entityPlayerClass = getHandleMethod.getReturnType();
         craftPlayerGetHandle = lookup().unreflect(getHandleMethod);
-        final Field playerConnectionField = findField(entityPlayerClass, "playerConnection", "connection");
-        Class<?> playerConnectionClass = null;
+        final Field playerConnectionField = ServerPlayerAccessor.getFieldConnection();
         if(playerConnectionField != null) { // fields are named
           entityPlayerGetConnection = lookup().unreflectGetter(playerConnectionField);
-          playerConnectionClass = playerConnectionField.getType();
         } else { // fields are obf, let's discover the field by type
-          final Class<?> serverGamePacketListenerImpl = findClass(
-            findNmsClassName("PlayerConnection"),
-            findMcClassName("server.network.PlayerConnection"),
-            findMcClassName("server.network.ServerGamePacketListenerImpl")
-          );
+          final Class<?> serverGamePacketListenerImpl = ServerGamePacketListenerImplAccessor.getType();
           for(final Field field : entityPlayerClass.getDeclaredFields()) {
             final int modifiers = field.getModifiers();
             if(Modifier.isPublic(modifiers) && !Modifier.isFinal(modifiers)) {
               if(serverGamePacketListenerImpl == null || field.getType().equals(serverGamePacketListenerImpl)) {
                 entityPlayerGetConnection = lookup().unreflectGetter(field);
-                playerConnectionClass = field.getType();
               }
             }
           }
         }
-        playerConnectionSendPacket = findMethod(playerConnectionClass, new String[]{"sendPacket", "send"}, void.class, packetClass);
+        playerConnectionSendPacket = lookup().unreflect(ServerGamePacketListenerImplAccessor.getMethodSend1());
       } catch(final Throwable error) {
         logError(error, "Failed to initialize CraftBukkit sendPacket");
       }
@@ -204,19 +189,11 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     }
   }
 
-  private static final @Nullable Class<?> CLASS_CHAT_COMPONENT = findClass(
-    findNmsClassName("IChatBaseComponent"),
-    findMcClassName("network.chat.IChatBaseComponent"),
-    findMcClassName("network.chat.Component")
-  );
-  private static final @Nullable Class<?> CLASS_MESSAGE_TYPE = findClass(
-    findNmsClassName("ChatMessageType"),
-    findMcClassName("network.chat.ChatMessageType"),
-    findMcClassName("network.chat.ChatType")
-  );
-  private static final @Nullable Object MESSAGE_TYPE_CHAT = findEnum(CLASS_MESSAGE_TYPE, "CHAT", 0);
-  private static final @Nullable Object MESSAGE_TYPE_SYSTEM = findEnum(CLASS_MESSAGE_TYPE, "SYSTEM", 1);
-  private static final @Nullable Object MESSAGE_TYPE_ACTIONBAR = findEnum(CLASS_MESSAGE_TYPE, "GAME_INFO", 2);
+  private static final @Nullable Class<?> CLASS_CHAT_COMPONENT = ComponentAccessor.getType();
+  private static final @Nullable Class<?> CLASS_MESSAGE_TYPE = ChatTypeAccessor.getType();
+  private static final @Nullable Object MESSAGE_TYPE_CHAT = Optional.ofNullable(ChatTypeAccessor.getFieldCHAT()).orElse(0);
+  private static final @Nullable Object MESSAGE_TYPE_SYSTEM = Optional.ofNullable(ChatTypeAccessor.getFieldSYSTEM()).orElse(1);
+  private static final @Nullable Object MESSAGE_TYPE_ACTIONBAR = Optional.ofNullable(ChatTypeAccessor.getFieldGAME_INFO()).orElse(1);
 
   private static final @Nullable MethodHandle LEGACY_CHAT_PACKET_CONSTRUCTOR; // (IChatBaseComponent, byte)
   private static final @Nullable MethodHandle CHAT_PACKET_CONSTRUCTOR; // (ChatMessageType, IChatBaseComponent, UUID) -> PacketPlayOutChat
@@ -227,22 +204,18 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
     try {
       if(CLASS_CHAT_COMPONENT != null) {
-        final Class<?> chatPacketClass = needClass(
-          findNmsClassName("PacketPlayOutChat"),
-          findMcClassName("network.protocol.game.PacketPlayOutChat"),
-          findMcClassName("network.protocol.game.ClientboundChatPacket")
-        );
+        final Class<?> chatPacketClass = ClientboundChatPacketAccessor.getType();
         // ClientboundChatPacket constructor changed for 1.16
-        chatPacketConstructor = findConstructor(chatPacketClass, CLASS_CHAT_COMPONENT);
+        chatPacketConstructor = lookup().unreflectConstructor(ClientboundChatPacketAccessor.getConstructor0());
         if(chatPacketConstructor == null) {
           if(CLASS_MESSAGE_TYPE != null) {
-            chatPacketConstructor = findConstructor(chatPacketClass, CLASS_CHAT_COMPONENT, CLASS_MESSAGE_TYPE, UUID.class);
+            chatPacketConstructor = lookup().unreflectConstructor(ClientboundChatPacketAccessor.getConstructor3());
           }
         } else {
           // Create a function that ignores the message type and sender id arguments to call the underlying one-argument constructor
           chatPacketConstructor = dropArguments(chatPacketConstructor, 1, CLASS_MESSAGE_TYPE == null ? Object.class : CLASS_MESSAGE_TYPE, UUID.class);
         }
-        legacyChatPacketConstructor = findConstructor(chatPacketClass, CLASS_CHAT_COMPONENT, byte.class);
+        legacyChatPacketConstructor = lookup().unreflectConstructor(ClientboundChatPacketAccessor.getConstructor1());
         if(legacyChatPacketConstructor == null) { // 1.7 paper protocol hack?
           legacyChatPacketConstructor = findConstructor(chatPacketClass, CLASS_CHAT_COMPONENT, int.class);
         }
@@ -272,25 +245,28 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     }
   }
 
-  private static final @Nullable Class<?> CLASS_TITLE_PACKET = findClass(
-    findNmsClassName("PacketPlayOutTitle"),
-    findMcClassName("network.protocol.game.PacketPlayOutTitle")
-  );
-  private static final @Nullable Class<?> CLASS_TITLE_ACTION = findClass(
-    findNmsClassName("PacketPlayOutTitle$EnumTitleAction"), // welcome to spigot, where we can't name classes? i guess?
-    findMcClassName("network.protocol.game.PacketPlayOutTitle$EnumTitleAction")
-  );
+  private static final @Nullable Class<?> CLASS_TITLE_PACKET = ClientboundSetTitlesPacketAccessor.getType();
+  private static final @Nullable Class<?> CLASS_TITLE_ACTION = ClientboundSetTitlesPacket_i_TypeAccessor.getType();
   private static final MethodHandle CONSTRUCTOR_TITLE_MESSAGE = findConstructor(CLASS_TITLE_PACKET, CLASS_TITLE_ACTION, CLASS_CHAT_COMPONENT); // (EnumTitleAction, IChatBaseComponent)
   private static final @Nullable MethodHandle CONSTRUCTOR_TITLE_TIMES = findConstructor(CLASS_TITLE_PACKET, int.class, int.class, int.class);
-  private static final @Nullable Object TITLE_ACTION_TITLE = findEnum(CLASS_TITLE_ACTION, "TITLE", 0);
-  private static final @Nullable Object TITLE_ACTION_SUBTITLE = findEnum(CLASS_TITLE_ACTION, "SUBTITLE", 1);
-  private static final @Nullable Object TITLE_ACTION_ACTIONBAR = findEnum(CLASS_TITLE_ACTION, "ACTIONBAR");
-  private static final @Nullable Object TITLE_ACTION_CLEAR = findEnum(CLASS_TITLE_ACTION, "CLEAR");
-  private static final @Nullable Object TITLE_ACTION_RESET = findEnum(CLASS_TITLE_ACTION, "RESET");
+  private static final @Nullable Object TITLE_ACTION_TITLE = Optional.ofNullable(ClientboundSetTitlesPacket_i_TypeAccessor.getFieldTITLE()).orElse(0);
+  private static final @Nullable Object TITLE_ACTION_SUBTITLE = Optional.ofNullable(ClientboundSetTitlesPacket_i_TypeAccessor.getFieldSUBTITLE()).orElse(1);
+  private static final @Nullable Object TITLE_ACTION_ACTIONBAR = ClientboundSetTitlesPacket_i_TypeAccessor.getFieldACTIONBAR();
+  private static final @Nullable Object TITLE_ACTION_CLEAR = ClientboundSetTitlesPacket_i_TypeAccessor.getFieldCLEAR();
+  private static final @Nullable Object TITLE_ACTION_RESET = ClientboundSetTitlesPacket_i_TypeAccessor.getFieldRESET();
 
   static class ActionBar_1_17 extends PacketFacet<Player> implements Facet.ActionBar<Player, Object> {
-    private static final @Nullable Class<?> CLASS_SET_ACTION_BAR_TEXT_PACKET = findMcClass("network.protocol.game.ClientboundSetActionBarTextPacket");
-    private static final @Nullable MethodHandle CONSTRUCTOR_ACTION_BAR = findConstructor(CLASS_SET_ACTION_BAR_TEXT_PACKET, CLASS_CHAT_COMPONENT);
+    private static final @Nullable MethodHandle CONSTRUCTOR_ACTION_BAR;
+
+    static {
+      MethodHandle tr = null;
+      try {
+        tr = lookup().unreflectConstructor(ClientboundSetActionBarTextPacketAccessor.getConstructor0());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      CONSTRUCTOR_ACTION_BAR = tr;
+    }
 
     @Override
     public boolean isSupported() {
@@ -303,7 +279,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
       try {
         return CONSTRUCTOR_ACTION_BAR.invoke(super.createMessage(viewer, message));
       } catch(final Throwable error) {
-        logError(error, "Failed to invoke PacketPlayOutTitle constructor: %s", message);
+        logError(error, "Failed to invoke ClientboundSetActionBarTextPacket constructor: %s", message);
         return null;
       }
     }
@@ -348,68 +324,53 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
   }
 
   static class EntitySound extends PacketFacet<Player> implements Facet.EntitySound<Player, Object> {
-    private static final Class<?> CLASS_CLIENTBOUND_ENTITY_SOUND = findClass(
-      findNmsClassName("PacketPlayOutEntitySound"),
-      findMcClassName("network.protocol.game.PacketPlayOutEntitySound"),
-      findMcClassName("network.protocol.game.ClientboundEntitySoundPacket")
-    );
-    private static final Class<?> CLASS_REGISTRY = findClass(
-      findNmsClassName("IRegistry"),
-      findMcClassName("core.IRegistry"),
-      findMcClassName("core.Registry")
-    );
-    private static final Class<?> CLASS_WRITABLE_REGISTRY = findClass(
-      findNmsClassName("IRegistryWritable"),
-      findMcClassName("core.IRegistryWritable"),
-      findMcClassName("core.WritableRegistry")
-    );
-    private static final Class<?> CLASS_RESOURCE_LOCATION = findClass(
-      findNmsClassName("MinecraftKey"),
-      findMcClassName("resources.MinecraftKey"),
-      findMcClassName("resources.ResourceLocation")
-    );
-    private static final Class<?> CLASS_SOUND_EFFECT = findClass(
-      findNmsClassName("SoundEffect"),
-      findMcClassName("sounds.SoundEffect"),
-      findMcClassName("sounds.SoundEvent")
-    );
-    private static final Class<?> CLASS_SOUND_SOURCE = findClass(
-      findNmsClassName("SoundCategory"),
-      findMcClassName("sounds.SoundCategory"),
-      findMcClassName("sounds.SoundSource")
-    );
+    private static final Class<?> CLASS_REGISTRY = RegistryAccessor.getType();
+    private static final Class<?> CLASS_WRITABLE_REGISTRY = WritableRegistryAccessor.getType();
+    private static final Class<?> CLASS_SOUND_SOURCE = SoundSourceAccessor.getType();
 
-    private static final MethodHandle NEW_CLIENTBOUND_ENTITY_SOUND = findConstructor(CLASS_CLIENTBOUND_ENTITY_SOUND, CLASS_SOUND_EFFECT, CLASS_SOUND_SOURCE, CLASS_NMS_ENTITY, float.class, float.class);
-    private static final MethodHandle NEW_RESOURCE_LOCATION = findConstructor(CLASS_RESOURCE_LOCATION, String.class, String.class);
-    private static final MethodHandle REGISTRY_GET_OPTIONAL = findMethod(CLASS_REGISTRY, "getOptional", Optional.class, CLASS_RESOURCE_LOCATION);
+    private static final MethodHandle NEW_CLIENTBOUND_ENTITY_SOUND;
+    private static final MethodHandle NEW_RESOURCE_LOCATION;
+    private static final MethodHandle REGISTRY_GET_OPTIONAL;
     private static final MethodHandle SOUND_SOURCE_GET_NAME;
     private static final Object REGISTRY_SOUND_EVENT;
 
     static {
+      MethodHandle tr = null;
+      try {
+        tr = lookup().unreflectConstructor(ClientboundSoundEntityPacketAccessor.getConstructor0());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      NEW_CLIENTBOUND_ENTITY_SOUND = tr;
+
+      MethodHandle nrl = null;
+      try {
+        nrl = lookup().unreflectConstructor(ResourceLocationAccessor.getConstructor0());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      NEW_RESOURCE_LOCATION = nrl;
+
+      MethodHandle go = null;
+      try {
+        go = lookup().unreflect(RegistryAccessor.getMethodGetOptional1());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      REGISTRY_GET_OPTIONAL = go;
+
       Object registrySoundEvent = null;
       MethodHandle soundSourceGetName = null;
-      if(CLASS_SOUND_SOURCE != null) {
-        for(final Method method : CLASS_SOUND_SOURCE.getDeclaredMethods()) {
-          if(
-            method.getReturnType().equals(String.class)
-              && method.getParameterCount() == 0
-              && !"name".equals(method.getName())
-              && Modifier.isPublic(method.getModifiers())
-          ) {
-            try {
-              soundSourceGetName = lookup().unreflect(method);
-            } catch(final IllegalAccessException ex) {
-              // ignored, getName is public
-            }
-            break;
-          }
-        }
+      try {
+        soundSourceGetName = lookup().unreflect(SoundSourceAccessor.getMethodGetName1());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
       }
       if(CLASS_REGISTRY != null) {
         // we don't have always field names, so:
         // first: try to find SOUND_EVENT field
         try {
-          final Field soundEventField = findField(CLASS_REGISTRY, "SOUND_EVENT");
+          final Field soundEventField = RegistryAccessor.getFieldSOUND_EVENT();
           if(soundEventField != null) {
             registrySoundEvent = soundEventField.get(null);
           } else {
@@ -508,15 +469,44 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
   static class Title_1_17 extends PacketFacet<Player> implements Facet.Title<Player, Object, List<?>> {
 
-    private static final Class<?> PACKET_SET_TITLE = findMcClass("network.protocol.game.ClientboundSetTitleTextPacket");
-    private static final Class<?> PACKET_SET_SUBTITLE = findMcClass("network.protocol.game.ClientboundSetSubtitleTextPacket");
-    private static final Class<?> PACKET_SET_TITLE_ANIMATION = findMcClass("network.protocol.game.ClientboundSetTitlesAnimationPacket");
-    private static final Class<?> PACKET_CLEAR_TITLES = findMcClass("network.protocol.game.ClientboundClearTitlesPacket");
+    private static final MethodHandle CONSTRUCTOR_SET_TITLE;
+    private static final MethodHandle CONSTRUCTOR_SET_SUBTITLE;
+    private static final MethodHandle CONSTRUCTOR_SET_TITLE_ANIMATION;
+    private static final MethodHandle CONSTRUCTOR_CLEAR_TITLES;
 
-    private static final MethodHandle CONSTRUCTOR_SET_TITLE = findConstructor(PACKET_SET_TITLE, CLASS_CHAT_COMPONENT);
-    private static final MethodHandle CONSTRUCTOR_SET_SUBTITLE = findConstructor(PACKET_SET_SUBTITLE, CLASS_CHAT_COMPONENT);
-    private static final MethodHandle CONSTRUCTOR_SET_TITLE_ANIMATION = findConstructor(PACKET_SET_TITLE_ANIMATION, int.class, int.class, int.class);
-    private static final MethodHandle CONSTRUCTOR_CLEAR_TITLES = findConstructor(PACKET_CLEAR_TITLES, boolean.class);
+    static {
+      MethodHandle st = null;
+      try {
+        st = lookup().unreflectConstructor(ClientboundSetTitleTextPacketAccessor.getConstructor0());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      CONSTRUCTOR_SET_TITLE = st;
+
+      MethodHandle ss = null;
+      try {
+        ss = lookup().unreflectConstructor(ClientboundSetSubtitleTextPacketAccessor.getConstructor0());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      CONSTRUCTOR_SET_SUBTITLE = ss;
+
+      MethodHandle sta = null;
+      try {
+        sta = lookup().unreflectConstructor(ClientboundSetTitlesAnimationPacketAccessor.getConstructor0());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      CONSTRUCTOR_SET_TITLE_ANIMATION = sta;
+
+      MethodHandle ct = null;
+      try {
+        ct = lookup().unreflectConstructor(ClientboundClearTitlesPacketAccessor.getConstructor0());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      CONSTRUCTOR_CLEAR_TITLES = ct;
+    }
 
     @Override
     public boolean isSupported() {
@@ -695,16 +685,8 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
         .build();
     }
 
-    private static final Class<?> CLASS_NBT_TAG_COMPOUND = findClass(
-      findNmsClassName("NBTTagCompound"),
-      findMcClassName("nbt.CompoundTag"),
-      findMcClassName("nbt.NBTTagCompound")
-    );
-    private static final Class<?> CLASS_NBT_IO = findClass(
-      findNmsClassName("NBTCompressedStreamTools"),
-      findMcClassName("nbt.NbtIo"),
-      findMcClassName("nbt.NBTCompressedStreamTools")
-    );
+    private static final Class<?> CLASS_NBT_TAG_COMPOUND = CompoundTagAccessor.getType();
+    private static final Class<?> CLASS_NBT_IO = NbtIoAccessor.getType();
     private static final MethodHandle NBT_IO_DESERIALIZE;
 
     static {
@@ -712,18 +694,15 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
       if(CLASS_NBT_IO != null) { // obf obf obf
         // public static NBTCompressedStreamTools.___(DataInputStream)NBTTagCompound
-        for(final Method method : CLASS_NBT_IO.getDeclaredMethods()) {
-          if(Modifier.isStatic(method.getModifiers())
-            && method.getReturnType().equals(CLASS_NBT_TAG_COMPOUND)
-            && method.getParameterCount() == 1) {
-            final Class<?> firstParam = method.getParameterTypes()[0];
-            if(firstParam.equals(DataInputStream.class) || firstParam.equals(DataInput.class)) {
-              try {
-                nbtIoDeserialize = lookup().unreflect(method);
-              } catch(final IllegalAccessException ignore) {
-              }
-              break;
-            }
+        if (NbtIoAccessor.getMethodRead1() != null) {
+          try {
+            nbtIoDeserialize = lookup().unreflect(NbtIoAccessor.getMethodRead1());
+          } catch (final IllegalAccessException ignore) {
+          }
+        } else {
+          try {
+            nbtIoDeserialize = lookup().unreflect(NbtIoAccessor.getMethodRead2());
+          } catch (final IllegalAccessException ignore) {
           }
         }
       }
@@ -749,13 +728,28 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     }
 
     private static final Class<?> CLASS_CRAFT_ITEMSTACK = findCraftClass("inventory.CraftItemStack");
-    private static final Class<?> CLASS_MC_ITEMSTACK = findClass(
-      findNmsClassName("ItemStack"),
-      findMcClassName("world.item.ItemStack")
-    );
+    private static final Class<?> CLASS_MC_ITEMSTACK = ItemStackAccessor.getType();
 
-    private static final MethodHandle MC_ITEMSTACK_SET_TAG = findMethod(CLASS_MC_ITEMSTACK, "setTag", void.class, CLASS_NBT_TAG_COMPOUND);
-    private static final MethodHandle MC_ITEMSTACK_GET_TAG = findMethod(CLASS_MC_ITEMSTACK, "getTag", CLASS_NBT_TAG_COMPOUND);
+    private static final MethodHandle MC_ITEMSTACK_SET_TAG;
+    private static final MethodHandle MC_ITEMSTACK_GET_TAG;
+
+    static {
+      MethodHandle st = null;
+      try {
+        st = lookup().unreflect(ItemStackAccessor.getMethodSetTag1());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      MC_ITEMSTACK_SET_TAG = st;
+
+      MethodHandle gt = null;
+      try {
+        gt = lookup().unreflect(ItemStackAccessor.getMethodSetTag1());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      MC_ITEMSTACK_GET_TAG = gt;
+    }
 
     private static final MethodHandle CRAFT_ITEMSTACK_NMS_COPY = findStaticMethod(CLASS_CRAFT_ITEMSTACK, "asNMSCopy", CLASS_MC_ITEMSTACK, ItemStack.class);
     private static final MethodHandle CRAFT_ITEMSTACK_CRAFT_MIRROR = findStaticMethod(CLASS_CRAFT_ITEMSTACK, "asCraftMirror", CLASS_CRAFT_ITEMSTACK, CLASS_MC_ITEMSTACK);
@@ -778,18 +772,18 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
   }
 
   static final class BookPost1_13 extends AbstractBook {
-    private static final Class<?> CLASS_ENUM_HAND = findClass(
-      findNmsClassName("EnumHand"),
-      findMcClassName("world.EnumHand"),
-      findMcClassName("world.InteractionHand")
-    );
-    private static final Object HAND_MAIN = findEnum(CLASS_ENUM_HAND, "MAIN_HAND", 0);
-    private static final Class<?> PACKET_OPEN_BOOK = findClass(
-      findNmsClassName("PacketPlayOutOpenBook"),
-      findMcClassName("network.protocol.game.PacketPlayOutOpenBook"),
-      findMcClassName("network.protocol.game.ClientboundOpenBookPacket")
-    );
-    private static final MethodHandle NEW_PACKET_OPEN_BOOK = findConstructor(PACKET_OPEN_BOOK, CLASS_ENUM_HAND);
+    private static final Object HAND_MAIN = InteractionHandAccessor.getFieldMAIN_HAND();
+    private static final MethodHandle NEW_PACKET_OPEN_BOOK;
+
+    static {
+      MethodHandle npob = null;
+      try {
+        npob = lookup().unreflectConstructor(ClientboundOpenBookPacketAccessor.getConstructor0());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      NEW_PACKET_OPEN_BOOK = npob;
+    }
 
     @Override
     public boolean isSupported() {
@@ -804,20 +798,30 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
   static final class Book1_13 extends AbstractBook {
     private static final Class<?> CLASS_BYTE_BUF = findClass("io.netty.buffer.ByteBuf");
-    private static final Class<?> CLASS_PACKET_CUSTOM_PAYLOAD = findNmsClass("PacketPlayOutCustomPayload");
-    private static final Class<?> CLASS_FRIENDLY_BYTE_BUF = findNmsClass("PacketDataSerializer");
-    private static final Class<?> CLASS_RESOURCE_LOCATION = findNmsClass("MinecraftKey");
+    private static final Class<?> CLASS_FRIENDLY_BYTE_BUF = FriendlyByteBufAccessor.getType();
+    private static final Class<?> CLASS_RESOURCE_LOCATION = ResourceLocationAccessor.getType();
     private static final Object PACKET_TYPE_BOOK_OPEN;
 
-    private static final MethodHandle NEW_PACKET_CUSTOM_PAYLOAD = findConstructor(CLASS_PACKET_CUSTOM_PAYLOAD, CLASS_RESOURCE_LOCATION, CLASS_FRIENDLY_BYTE_BUF); // (channelId: String, payload: PacketByteBuf)
+    private static final MethodHandle NEW_PACKET_CUSTOM_PAYLOAD;
+
+    static {
+      MethodHandle npcp = null;
+      try {
+        npcp = lookup().unreflectConstructor(ClientboundCustomPayloadPacketAccessor.getConstructor0());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      NEW_PACKET_CUSTOM_PAYLOAD = npcp;
+    }
+
     private static final MethodHandle NEW_FRIENDLY_BYTE_BUF = findConstructor(CLASS_FRIENDLY_BYTE_BUF, CLASS_BYTE_BUF); // (wrapped: ByteBuf)
 
     static {
       Object packetType = null;
       if(CLASS_RESOURCE_LOCATION != null) {
         try {
-          packetType = CLASS_RESOURCE_LOCATION.getConstructor(String.class).newInstance("minecraft:book_open");
-        } catch(final InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+          packetType = ResourceLocationAccessor.getConstructor1().newInstance("minecraft:book_open");
+        } catch(final InstantiationException | IllegalAccessException | InvocationTargetException e) {
           // ignore, we will be unsupported
         }
       }
@@ -842,10 +846,20 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
   static final class BookPre1_13 extends AbstractBook {
     private static final String PACKET_TYPE_BOOK_OPEN = "MC|BOpen"; // Before 1.13 the open book packet is a packet250
     private static final Class<?> CLASS_BYTE_BUF = findClass("io.netty.buffer.ByteBuf");
-    private static final Class<?> CLASS_PACKET_CUSTOM_PAYLOAD = findNmsClass("PacketPlayOutCustomPayload");
-    private static final Class<?> CLASS_PACKET_DATA_SERIALIZER = findNmsClass("PacketDataSerializer");
+    private static final Class<?> CLASS_PACKET_CUSTOM_PAYLOAD = ClientboundCustomPayloadPacketAccessor.getType();
+    private static final Class<?> CLASS_PACKET_DATA_SERIALIZER = FriendlyByteBufAccessor.getType();
 
-    private static final MethodHandle NEW_PACKET_CUSTOM_PAYLOAD = findConstructor(CLASS_PACKET_CUSTOM_PAYLOAD, String.class, CLASS_PACKET_DATA_SERIALIZER); // (channelId: String, payload: PacketByteBuf)
+    private static final MethodHandle NEW_PACKET_CUSTOM_PAYLOAD;
+    static {
+      MethodHandle npcp = null;
+      try {
+        npcp = lookup().unreflectConstructor(ClientboundCustomPayloadPacketAccessor.getConstructor1());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      NEW_PACKET_CUSTOM_PAYLOAD = npcp;
+    }
+
     private static final MethodHandle NEW_PACKET_BYTE_BUF = findConstructor(CLASS_PACKET_DATA_SERIALIZER, CLASS_BYTE_BUF); // (wrapped: ByteBuf)
 
     @Override
@@ -864,12 +878,8 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
   static final class BossBar extends BukkitFacet.BossBar {
     private static final Class<?> CLASS_CRAFT_BOSS_BAR = findCraftClass("boss.CraftBossBar");
-    private static final Class<?> CLASS_BOSS_BAR_ACTION = findClass(
-      findNmsClassName("PacketPlayOutBoss$Action"),
-      findMcClassName("network.protocol.game.PacketPlayOutBoss$Action"),
-      findMcClassName("network.protocol.game.ClientboundBossEventPacket$Operation")
-    );
-    private static final Object BOSS_BAR_ACTION_TITLE = findEnum(CLASS_BOSS_BAR_ACTION, "UPDATE_NAME", 3);
+    private static final Class<?> CLASS_BOSS_BAR_ACTION = ClientboundBossEventPacket_i_OperationAccessor.getType();
+    private static final Object BOSS_BAR_ACTION_TITLE = Optional.ofNullable(ClientboundBossEventPacket_i_OperationAccessor.getFieldUPDATE_NAME()).orElse(3);
     private static final MethodHandle CRAFT_BOSS_BAR_HANDLE;
     private static final MethodHandle NMS_BOSS_BATTLE_SET_NAME;
     private static final MethodHandle NMS_BOSS_BATTLE_SEND_UPDATE;

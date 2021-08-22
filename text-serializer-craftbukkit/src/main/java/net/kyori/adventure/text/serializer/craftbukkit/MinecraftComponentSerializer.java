@@ -34,17 +34,15 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.concurrent.atomic.AtomicReference;
 
+import net.kyori.adventure.platform.nms.accessors.Component_i_SerializerAccessor;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+import net.kyori.adventure.platform.nms.accessors.ComponentAccessor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import static net.kyori.adventure.text.serializer.craftbukkit.BukkitComponentSerializer.gson;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findClass;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findMcClassName;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findNmsClass;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findNmsClassName;
 import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.lookup;
 
 /**
@@ -83,12 +81,7 @@ public final class MinecraftComponentSerializer implements ComponentSerializer<C
     return INSTANCE;
   }
 
-  private static final @Nullable Class<?> CLASS_JSON_DESERIALIZER = findClass("com.goo".concat("gle.gson.JsonDeserializer")); // Hide from relocation checkers
-  private static final @Nullable Class<?> CLASS_CHAT_COMPONENT = findClass(
-    findNmsClassName("IChatBaseComponent"),
-    findMcClassName("network.chat.IChatBaseComponent"),
-    findMcClassName("network.chat.Component")
-  );
+  private static final @Nullable Class<?> CLASS_CHAT_COMPONENT = ComponentAccessor.getType();
   private static final AtomicReference<RuntimeException> INITIALIZATION_ERROR = new AtomicReference<>(new UnsupportedOperationException());
 
   private static final Object MC_TEXT_GSON;
@@ -103,31 +96,14 @@ public final class MinecraftComponentSerializer implements ComponentSerializer<C
     try {
       if(CLASS_CHAT_COMPONENT != null) {
         // Chat serializer //
-        final Class<?> chatSerializerClass = Arrays.stream(CLASS_CHAT_COMPONENT.getClasses())
-          .filter(c -> {
-            if(CLASS_JSON_DESERIALIZER != null) {
-              return CLASS_JSON_DESERIALIZER.isAssignableFrom(c);
-            } else {
-              for(final Class<?> itf : c.getInterfaces()) {
-                if(itf.getSimpleName().equals("JsonDeserializer")) {
-                  return true;
-                }
-              }
-              return false;
-            }
-          })
-          .findAny()
-          .orElse(findNmsClass("ChatSerializer")); // 1.7.10 compat
+        final Class<?> chatSerializerClass = Component_i_SerializerAccessor.getType();
         if(chatSerializerClass != null) {
-          final Field gsonField = Arrays.stream(chatSerializerClass.getDeclaredFields())
-            .filter(m -> Modifier.isStatic(m.getModifiers()))
-            .filter(m -> m.getType().equals(Gson.class))
-            .findFirst()
-            .orElse(null);
+          final Field gsonField = Component_i_SerializerAccessor.getFieldGSON();
           if(gsonField != null) {
             gsonField.setAccessible(true);
             gson = gsonField.get(null);
           } else {
+            // this is not relevant for us
             final Method[] declaredMethods = chatSerializerClass.getDeclaredMethods();
             final Method deserialize = Arrays.stream(declaredMethods)
               .filter(m -> Modifier.isStatic(m.getModifiers()))

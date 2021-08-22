@@ -1,3 +1,13 @@
+pluginManagement {
+  repositories {
+    maven {
+      url = "https://repo.screamingsandals.org/public/"
+    }
+
+    gradlePluginPortal()
+  }
+}
+
 rootProject.name = 'adventure-platform-parent'
 
 ['bungeecord', 'spongeapi', 'legacy-text3', 'craftbukkit'].each {
@@ -8,7 +18,7 @@ rootProject.name = 'adventure-platform-parent'
 include 'api'
 findProject(':api')?.name = 'adventure-platform-api'
 
-['facet', 'viaversion', 'bukkit', 'bungeecord', 'spongeapi'].each {
+['facet', 'viaversion', 'bukkit', 'bungeecord', 'spongeapi', 'nms'].each {
   include "platform-$it"
   findProject(":platform-$it")?.name = "adventure-platform-$it"
 }

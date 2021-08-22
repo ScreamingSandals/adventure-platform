@@ -7,6 +7,7 @@ repositories {
 dependencies {
   api "net.kyori:adventure-api:${rootProject.adventure}"
   api "net.kyori:adventure-nbt:${rootProject.adventure}"
+  implementation project(':adventure-platform-nms')
   implementation "net.kyori:adventure-text-serializer-legacy:${rootProject.adventure}"
   api("net.kyori:adventure-text-serializer-gson:${rootProject.adventure}") {
     exclude group: "com.google.code.gson"
