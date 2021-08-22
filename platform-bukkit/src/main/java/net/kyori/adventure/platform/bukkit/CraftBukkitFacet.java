@@ -206,16 +206,22 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
       if(CLASS_CHAT_COMPONENT != null) {
         final Class<?> chatPacketClass = ClientboundChatPacketAccessor.getType();
         // ClientboundChatPacket constructor changed for 1.16
-        chatPacketConstructor = lookup().unreflectConstructor(ClientboundChatPacketAccessor.getConstructor0());
+        try {
+          chatPacketConstructor = lookup().unreflectConstructor(ClientboundChatPacketAccessor.getConstructor0());
+        } catch (Throwable ignored) {}
         if(chatPacketConstructor == null) {
           if(CLASS_MESSAGE_TYPE != null) {
-            chatPacketConstructor = lookup().unreflectConstructor(ClientboundChatPacketAccessor.getConstructor3());
+            try {
+              chatPacketConstructor = lookup().unreflectConstructor(ClientboundChatPacketAccessor.getConstructor3());
+            } catch (Throwable ignored) {}
           }
         } else {
           // Create a function that ignores the message type and sender id arguments to call the underlying one-argument constructor
           chatPacketConstructor = dropArguments(chatPacketConstructor, 1, CLASS_MESSAGE_TYPE == null ? Object.class : CLASS_MESSAGE_TYPE, UUID.class);
         }
-        legacyChatPacketConstructor = lookup().unreflectConstructor(ClientboundChatPacketAccessor.getConstructor1());
+        try {
+          legacyChatPacketConstructor = lookup().unreflectConstructor(ClientboundChatPacketAccessor.getConstructor1());
+        } catch (Throwable ignored) {}
         if(legacyChatPacketConstructor == null) { // 1.7 paper protocol hack?
           legacyChatPacketConstructor = findConstructor(chatPacketClass, CLASS_CHAT_COMPONENT, int.class);
         }
