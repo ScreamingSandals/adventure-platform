@@ -14,6 +14,8 @@ plugins {
   id 'org.screamingsandals.nms-mapper' version "$nmsMapperVersion" apply false
 }
 
+defaultTasks 'clean', 'screamCompile'
+
 // Adventure version
 ext.adventure = "4.8.1"
 
