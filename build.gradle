@@ -19,9 +19,10 @@ defaultTasks 'clean', 'screamCompile'
 // Adventure version
 ext.adventure = "4.8.1"
 
-group 'org.screamingsandals'
-version '4.0.0-SNAPSHOT'
-description 'Platform integrations for the adventure UI library'
+allprojects {
+  group 'org.screamingsandals'
+  version '4.0.0-SNAPSHOT'
+}
 
 
 /**
