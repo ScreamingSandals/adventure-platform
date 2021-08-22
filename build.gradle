@@ -46,11 +46,6 @@ class BukkitAnnotationsRule implements ComponentMetadataRule {
 
 subprojects {
   apply plugin: 'java'
-
-  if (project.name == 'adventure-platform-nms') {
-    return
-  }
-
   apply plugin: 'org.screamingsandals.plugin-builder-lite'
 
   //apply plugin: 'net.kyori.indra'
