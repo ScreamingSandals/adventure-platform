@@ -1,5 +1,4 @@
 apply plugin: 'org.screamingsandals.nms'
-apply plugin: 'java'
 
 sourceSets.main.java.srcDirs += 'src/generated/java'
 

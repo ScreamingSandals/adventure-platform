@@ -1,14 +1,16 @@
 buildscript {
   ext {
-    indraVersion = '2.0.6'
+    //indraVersion = '2.0.6'
+    pluginBuilderVersion = '1.0.50'
     nmsMapperVersion = '1.0.5'
   }
 }
 
 plugins {
-  id 'net.kyori.indra' version "$indraVersion" apply false
-  id 'net.kyori.indra.publishing.sonatype' version "$indraVersion"
-  id 'net.kyori.indra.license-header' version "$indraVersion" apply false
+  //id 'net.kyori.indra' version "$indraVersion" apply false
+  //id 'net.kyori.indra.publishing.sonatype' version "$indraVersion"
+  //id 'net.kyori.indra.license-header' version "$indraVersion" apply false
+  id 'org.screamingsandals.plugin-builder-lite' version "$pluginBuilderVersion" apply false
   id 'org.screamingsandals.nms-mapper' version "$nmsMapperVersion" apply false
 }
 
@@ -41,18 +43,22 @@ class BukkitAnnotationsRule implements ComponentMetadataRule {
 }
 
 subprojects {
+  apply plugin: 'java'
+
   if (project.name == 'adventure-platform-nms') {
     return
   }
 
-  apply plugin: 'net.kyori.indra'
-  apply plugin: 'net.kyori.indra.publishing'
+  apply plugin: 'org.screamingsandals.plugin-builder-lite'
+
+  //apply plugin: 'net.kyori.indra'
+  //apply plugin: 'net.kyori.indra.publishing'
   //apply plugin: 'net.kyori.indra.checkstyle'
-  apply plugin: 'net.kyori.indra.license-header'
+  //apply plugin: 'net.kyori.indra.license-header'
 
   repositories {
     mavenCentral()
-    sonatypeSnapshots()
+    sonatype()
     maven {
       name = 'viaversion'
       url = 'https://repo.viaversion.com'
@@ -68,7 +74,7 @@ subprojects {
     testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.7.1'
   }
 
-  indra {
+  /*indra {
     javaVersions {
       testWith(8, 11, 16)
     }
@@ -105,5 +111,5 @@ subprojects {
         }
       }
     }
-  }
+  }*/
 }
