@@ -24,8 +24,6 @@
 package net.kyori.adventure.text.serializer.craftbukkit;
 
 import com.google.common.annotations.Beta;
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -143,7 +141,7 @@ public final class MinecraftComponentSerializer implements ComponentSerializer<C
 
     try {
       if(MC_TEXT_GSON != null) {
-        final JsonElement element = ((Gson) MC_TEXT_GSON).toJsonTree(input);
+        final String element = MC_TEXT_GSON.getClass().getMethod("toJson", Object.class).invoke(MC_TEXT_GSON, input).toString();
         return gson().serializer().fromJson(element, Component.class);
       }
       return GsonComponentSerializer.gson().deserialize((String) TEXT_SERIALIZER_SERIALIZE.invoke(input));
@@ -157,9 +155,9 @@ public final class MinecraftComponentSerializer implements ComponentSerializer<C
     if(!SUPPORTED) throw INITIALIZATION_ERROR.get();
 
     if(MC_TEXT_GSON != null) {
-      final JsonElement json = gson().serializer().toJsonTree(component);
+      final String json = gson().serializer().toJson(component);
       try {
-        return ((Gson) MC_TEXT_GSON).fromJson(json, CLASS_CHAT_COMPONENT);
+        return MC_TEXT_GSON.getClass().getMethod("fromJson", String.class, Class.class).invoke(MC_TEXT_GSON, json, CLASS_CHAT_COMPONENT);
       } catch(final Throwable error) {
         throw new UnsupportedOperationException(error);
       }
