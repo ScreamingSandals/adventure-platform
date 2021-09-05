@@ -17,7 +17,7 @@ plugins {
 defaultTasks 'clean', 'screamCompile'
 
 // Adventure version
-ext.adventure = "4.8.1"
+ext.adventure = "4.9.0"
 
 allprojects {
   group 'org.screamingsandals'
