@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package net.kyori.adventure.text.serializer.craftbukkit;
+package net.kyori.adventure.platform.bukkit;
 
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import net.kyori.adventure.text.serializer.gson.legacyimpl.NBTLegacyHoverEventSerializer;
@@ -29,7 +29,7 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Material;
 import org.jetbrains.annotations.NotNull;
 
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findEnum;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findEnum;
 
 /**
  * A pair of component serializers for {@link org.bukkit.Bukkit}.
@@ -46,14 +46,14 @@ public final class BukkitComponentSerializer {
   private static final GsonComponentSerializer GSON_SERIALIZER;
 
   static {
-    if(IS_1_16) {
+    if (IS_1_16) {
       LEGACY_SERIALIZER = LegacyComponentSerializer.builder()
-              .hexColors()
-              .useUnusualXRepeatedCharacterHexFormat()
-              .build();
+        .hexColors()
+        .useUnusualXRepeatedCharacterHexFormat()
+        .build();
       GSON_SERIALIZER = GsonComponentSerializer.builder()
-              .legacyHoverEventSerializer(NBTLegacyHoverEventSerializer.get())
-              .build();
+        .legacyHoverEventSerializer(NBTLegacyHoverEventSerializer.get())
+        .build();
     } else {
       LEGACY_SERIALIZER = LegacyComponentSerializer.legacySection();
       GSON_SERIALIZER = GsonComponentSerializer.builder()

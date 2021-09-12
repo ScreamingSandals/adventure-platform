@@ -23,7 +23,8 @@
  */
 package net.kyori.adventure.platform.bukkit;
 
-import com.destroystokyo.paper.Title;
+import java.lang.invoke.MethodHandle;
+import java.lang.reflect.Method;
 import net.kyori.adventure.platform.facet.Facet;
 import net.kyori.adventure.platform.facet.FacetBase;
 import net.kyori.adventure.text.Component;
@@ -34,16 +35,13 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.reflect.Method;
-
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findClass;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findStaticMethod;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.hasClass;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.hasField;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.lookup;
 import static net.kyori.adventure.platform.facet.Knob.isEnabled;
 import static net.kyori.adventure.platform.facet.Knob.logError;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findClass;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findStaticMethod;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.hasClass;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.hasField;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.lookup;
 
 class PaperFacet<V extends CommandSender> extends FacetBase<V> {
   private static final boolean SUPPORTED = isEnabled("paper", true);
@@ -58,7 +56,7 @@ class PaperFacet<V extends CommandSender> extends FacetBase<V> {
       final Method method = NATIVE_GSON_COMPONENT_SERIALIZER_IMPL_CLASS.getDeclaredMethod("deserialize", String.class);
       method.setAccessible(true);
       return lookup().unreflect(method);
-    } catch(final NoSuchMethodException | IllegalAccessException | NullPointerException e) {
+    } catch (final NoSuchMethodException | IllegalAccessException | NullPointerException e) {
       return null;
     }
   }
@@ -102,9 +100,9 @@ class PaperFacet<V extends CommandSender> extends FacetBase<V> {
 
     @Override
     public void contributeTimes(final com.destroystokyo.paper.Title.@NotNull Builder coll, final int inTicks, final int stayTicks, final int outTicks) {
-      if(inTicks > -1) coll.fadeIn(inTicks);
-      if(stayTicks > -1) coll.stay(stayTicks);
-      if(outTicks > -1) coll.fadeOut(outTicks);
+      if (inTicks > -1) coll.fadeIn(inTicks);
+      if (stayTicks > -1) coll.stay(stayTicks);
+      if (outTicks > -1) coll.fadeOut(outTicks);
     }
 
     @Nullable
@@ -134,10 +132,10 @@ class PaperFacet<V extends CommandSender> extends FacetBase<V> {
     private static final MethodHandle NATIVE_GSON_COMPONENT_SERIALIZER_DESERIALIZE_METHOD_BOUND = createBoundNativeDeserializeMethodHandle();
 
     private static @Nullable MethodHandle createBoundNativeDeserializeMethodHandle() {
-      if(SUPPORTED) {
+      if (SUPPORTED) {
         try {
           return NATIVE_GSON_COMPONENT_SERIALIZER_DESERIALIZE_METHOD.bindTo(NATIVE_GSON_COMPONENT_SERIALIZER_GSON_GETTER.invoke());
-        } catch(final Throwable throwable) {
+        } catch (final Throwable throwable) {
           logError(throwable, "Failed to access native GsonComponentSerializer");
           return null;
         }
@@ -162,7 +160,7 @@ class PaperFacet<V extends CommandSender> extends FacetBase<V> {
     public @Nullable Object createMessage(final @NotNull Player viewer, final @NotNull Component message) {
       try {
         return NATIVE_GSON_COMPONENT_SERIALIZER_DESERIALIZE_METHOD_BOUND.invoke(GsonComponentSerializer.gson().serialize(message));
-      } catch(final Throwable throwable) {
+      } catch (final Throwable throwable) {
         logError(throwable, "Failed to create native Component message");
         return null;
       }

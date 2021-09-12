@@ -23,13 +23,6 @@
  */
 package net.kyori.adventure.platform.facet;
 
-import net.kyori.adventure.audience.MessageType;
-import net.kyori.adventure.identity.Identity;
-import net.kyori.adventure.sound.SoundStop;
-import net.kyori.adventure.text.Component;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.Collection;
@@ -38,6 +31,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
+import net.kyori.adventure.audience.MessageType;
+import net.kyori.adventure.identity.Identity;
+import net.kyori.adventure.sound.SoundStop;
+import net.kyori.adventure.text.Component;
+import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import static net.kyori.adventure.platform.facet.Knob.logError;
 import static net.kyori.adventure.platform.facet.Knob.logMessage;
@@ -46,9 +46,12 @@ import static net.kyori.adventure.platform.facet.Knob.logUnsupported;
 /**
  * A unit of functionality for a viewer.
  *
+ * <p>This is not supported API. Subject to change at any time.</p>
+ *
  * @param <V> a viewer type
  * @since 4.0.0
  */
+@ApiStatus.Internal
 public interface Facet<V> {
   /**
    * Creates a collection of supported facets.
@@ -62,18 +65,18 @@ public interface Facet<V> {
   @SafeVarargs
   static <V, F extends Facet<? extends V>> @NotNull Collection<F> of(final @NotNull Supplier<F>... suppliers) {
     final List<F> facets = new LinkedList<>();
-    for(final Supplier<F> supplier : suppliers) {
+    for (final Supplier<F> supplier : suppliers) {
       final F facet;
       try {
         facet = supplier.get();
-      } catch(final NoClassDefFoundError error) {
+      } catch (final NoClassDefFoundError error) {
         logMessage("Skipped facet: %s", supplier.getClass().getName());
         continue;
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed facet: %s", supplier);
         continue;
       }
-      if(!facet.isSupported()) {
+      if (!facet.isSupported()) {
         logMessage("Skipped facet: %s", facet);
         continue;
       }
@@ -94,14 +97,14 @@ public interface Facet<V> {
    * @since 4.0.0
    */
   static <V, F extends Facet<V>> @Nullable F of(final @Nullable Collection<F> facets, final @Nullable V viewer) {
-    if(facets == null || viewer == null) return null;
-    for(final F facet : facets) {
+    if (facets == null || viewer == null) return null;
+    for (final F facet : facets) {
       try {
-        if(facet.isApplicable(viewer)) {
+        if (facet.isApplicable(viewer)) {
           logMessage("Selected facet: %s for %s", facet, viewer);
           return facet;
         }
-      } catch(final ClassCastException error) {
+      } catch (final ClassCastException error) {
         // Continue along
       }
     }
@@ -197,9 +200,9 @@ public interface Facet<V> {
      * @since 4.0.0
      */
     default byte createMessageType(final @NotNull MessageType type) {
-      if(type == MessageType.CHAT) {
+      if (type == MessageType.CHAT) {
         return TYPE_CHAT;
-      } else if(type == MessageType.SYSTEM) {
+      } else if (type == MessageType.SYSTEM) {
         return TYPE_SYSTEM;
       }
       logUnsupported(this, type);
@@ -323,11 +326,11 @@ public interface Facet<V> {
      * @since 4.0.0
      */
     default int toTicks(final @Nullable Duration duration) {
-      if(duration == null || duration.isNegative()) {
+      if (duration == null || duration.isNegative()) {
         return -1;
       }
 
-      if(duration.getSeconds() > MAX_SECONDS) {
+      if (duration.getSeconds() > MAX_SECONDS) {
         // TODO: throw an exception here?
         return Integer.MAX_VALUE;
       }
@@ -553,19 +556,19 @@ public interface Facet<V> {
      * @since 4.0.0
      */
     default int createColor(final net.kyori.adventure.bossbar.BossBar.@NotNull Color color) {
-      if(color == net.kyori.adventure.bossbar.BossBar.Color.PURPLE) {
+      if (color == net.kyori.adventure.bossbar.BossBar.Color.PURPLE) {
         return 5;
-      } else if(color == net.kyori.adventure.bossbar.BossBar.Color.PINK) {
+      } else if (color == net.kyori.adventure.bossbar.BossBar.Color.PINK) {
         return 0;
-      } else if(color == net.kyori.adventure.bossbar.BossBar.Color.BLUE) {
+      } else if (color == net.kyori.adventure.bossbar.BossBar.Color.BLUE) {
         return 1;
-      } else if(color == net.kyori.adventure.bossbar.BossBar.Color.RED) {
+      } else if (color == net.kyori.adventure.bossbar.BossBar.Color.RED) {
         return 2;
-      } else if(color == net.kyori.adventure.bossbar.BossBar.Color.GREEN) {
+      } else if (color == net.kyori.adventure.bossbar.BossBar.Color.GREEN) {
         return 3;
-      } else if(color == net.kyori.adventure.bossbar.BossBar.Color.YELLOW) {
+      } else if (color == net.kyori.adventure.bossbar.BossBar.Color.YELLOW) {
         return 4;
-      } else if(color == net.kyori.adventure.bossbar.BossBar.Color.WHITE) {
+      } else if (color == net.kyori.adventure.bossbar.BossBar.Color.WHITE) {
         return 6;
       }
       logUnsupported(this, color);
@@ -580,15 +583,15 @@ public interface Facet<V> {
      * @since 4.0.0
      */
     default int createOverlay(final net.kyori.adventure.bossbar.BossBar.@NotNull Overlay overlay) {
-      if(overlay == net.kyori.adventure.bossbar.BossBar.Overlay.PROGRESS) {
+      if (overlay == net.kyori.adventure.bossbar.BossBar.Overlay.PROGRESS) {
         return 0;
-      } else if(overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_6) {
+      } else if (overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_6) {
         return 1;
-      } else if(overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_10) {
+      } else if (overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_10) {
         return 2;
-      } else if(overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_12) {
+      } else if (overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_12) {
         return 3;
-      } else if(overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_20) {
+      } else if (overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_20) {
         return 4;
       }
       logUnsupported(this, overlay);
@@ -606,23 +609,23 @@ public interface Facet<V> {
      */
     default byte createFlag(final byte flagBit, final @NotNull Set<net.kyori.adventure.bossbar.BossBar.Flag> flagsAdded, final @NotNull Set<net.kyori.adventure.bossbar.BossBar.Flag> flagsRemoved) {
       byte bit = flagBit;
-      for(final net.kyori.adventure.bossbar.BossBar.@NotNull Flag flag : flagsAdded) {
-        if(flag == net.kyori.adventure.bossbar.BossBar.Flag.DARKEN_SCREEN) {
+      for (final net.kyori.adventure.bossbar.BossBar.@NotNull Flag flag : flagsAdded) {
+        if (flag == net.kyori.adventure.bossbar.BossBar.Flag.DARKEN_SCREEN) {
           bit |= 1;
-        } else if(flag == net.kyori.adventure.bossbar.BossBar.Flag.PLAY_BOSS_MUSIC) {
+        } else if (flag == net.kyori.adventure.bossbar.BossBar.Flag.PLAY_BOSS_MUSIC) {
           bit |= 1 << 1;
-        } else if(flag == net.kyori.adventure.bossbar.BossBar.Flag.CREATE_WORLD_FOG) {
+        } else if (flag == net.kyori.adventure.bossbar.BossBar.Flag.CREATE_WORLD_FOG) {
           bit |= 1 << 2;
         } else {
           logUnsupported(this, flag);
         }
       }
-      for(final net.kyori.adventure.bossbar.BossBar.@NotNull Flag flag : flagsRemoved) {
-        if(flag == net.kyori.adventure.bossbar.BossBar.Flag.DARKEN_SCREEN) {
+      for (final net.kyori.adventure.bossbar.BossBar.@NotNull Flag flag : flagsRemoved) {
+        if (flag == net.kyori.adventure.bossbar.BossBar.Flag.DARKEN_SCREEN) {
           bit &= ~1;
-        } else if(flag == net.kyori.adventure.bossbar.BossBar.Flag.PLAY_BOSS_MUSIC) {
+        } else if (flag == net.kyori.adventure.bossbar.BossBar.Flag.PLAY_BOSS_MUSIC) {
           bit &= ~(1 << 1);
-        } else if(flag == net.kyori.adventure.bossbar.BossBar.Flag.CREATE_WORLD_FOG) {
+        } else if (flag == net.kyori.adventure.bossbar.BossBar.Flag.CREATE_WORLD_FOG) {
           bit &= ~(1 << 2);
         } else {
           logUnsupported(this, flag);
@@ -743,5 +746,25 @@ public interface Facet<V> {
      * @since 4.0.0
      */
     void send(final V viewer, final @Nullable M header, final @Nullable M footer);
+  }
+
+  /**
+   * Methods for building pointers.
+   *
+   * <p>Unlike other {@code Facet}s, pointer facets will stack, so <em>all</em> facets
+   * applicable to a particular viewer will be applied.</p>
+   *
+   * @param <V> the viewer type
+   * @since 4.0.0
+   */
+  interface Pointers<V> extends Facet<V> {
+    /**
+     * Contribute pointers to the builder for a certain viewer.
+     *
+     * @param viewer the viewer
+     * @param builder the builder
+     * @since 4.0.0
+     */
+    void contributePointers(final V viewer, final net.kyori.adventure.pointer.Pointers.Builder builder);
   }
 }

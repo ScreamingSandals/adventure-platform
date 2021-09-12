@@ -23,15 +23,15 @@
  */
 package net.kyori.adventure.platform.spongeapi;
 
+import java.util.Collection;
 import net.kyori.adventure.platform.facet.Facet;
 import net.kyori.adventure.platform.facet.FacetAudience;
+import net.kyori.adventure.platform.facet.FacetAudienceProvider;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.api.effect.Viewer;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.text.channel.ChatTypeMessageReceiver;
 import org.spongepowered.api.text.channel.MessageReceiver;
-
-import java.util.Collection;
 
 final class SpongeAudience extends FacetAudience<MessageReceiver> {
   // private static final Function<Player, UserConnection> VIA = new SpongeFacet.ViaHook();
@@ -56,8 +56,16 @@ final class SpongeAudience extends FacetAudience<MessageReceiver> {
     // () -> new ViaFacet.TabList<>(Player.class, VIA),
     SpongeFacet.TabList::new
   );
+  private static final Collection<Facet.Pointers<?>> POINTERS = Facet.of(
+    SpongeFacet.CommandSourcePointers::new,
+    SpongeFacet.SubjectPointers::new,
+    SpongeFacet.IdentifiablePointers::new,
+    SpongeFacet.ConsoleSourcePointers::new,
+    SpongeFacet.PlayerPointers::new,
+    SpongeFacet.LocatablePointers::new
+  );
 
-  SpongeAudience(final @NotNull Collection<MessageReceiver> viewers) {
-    super(viewers, null, CHAT, ACTION_BAR, TITLE, SOUND, null, BOOK, BOSS_BAR, TAB_LIST);
+  SpongeAudience(final FacetAudienceProvider<?, ?> provider, final @NotNull Collection<MessageReceiver> viewers) {
+    super(provider, viewers, CHAT, ACTION_BAR, TITLE, SOUND, null, BOOK, BOSS_BAR, TAB_LIST, POINTERS);
   }
 }

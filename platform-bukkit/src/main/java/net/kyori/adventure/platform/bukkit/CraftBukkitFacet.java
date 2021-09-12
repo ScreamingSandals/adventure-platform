@@ -25,7 +25,6 @@ package net.kyori.adventure.platform.bukkit;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -58,7 +57,6 @@ import net.kyori.adventure.platform.facet.FacetBase;
 import net.kyori.adventure.platform.nms.accessors.*;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
-import net.kyori.adventure.text.serializer.craftbukkit.MinecraftComponentSerializer;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -81,23 +79,23 @@ import org.jetbrains.annotations.Nullable;
 
 import static java.lang.invoke.MethodHandles.dropArguments;
 import static java.lang.invoke.MethodType.methodType;
+import static net.kyori.adventure.platform.bukkit.BukkitComponentSerializer.gson;
+import static net.kyori.adventure.platform.bukkit.BukkitComponentSerializer.legacy;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findClass;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findConstructor;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findCraftClass;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findEnum;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findField;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findMcClassName;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findMethod;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findNmsClass;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findNmsClassName;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findSetterOf;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findStaticMethod;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.lookup;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.needField;
 import static net.kyori.adventure.platform.facet.Knob.isEnabled;
 import static net.kyori.adventure.platform.facet.Knob.logError;
-import static net.kyori.adventure.text.serializer.craftbukkit.BukkitComponentSerializer.gson;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findClass;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findConstructor;
-import static net.kyori.adventure.text.serializer.craftbukkit.BukkitComponentSerializer.legacy;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findCraftClass;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findEnum;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findField;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findMcClassName;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findMethod;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findNmsClass;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findNmsClassName;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findSetterOf;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findStaticMethod;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.lookup;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.needField;
 
 class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
   protected CraftBukkitFacet(final @Nullable Class<? extends V> viewerClass) {
@@ -124,7 +122,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     MethodHandle craftPlayerGetHandle = null;
     MethodHandle entityPlayerGetConnection = null;
     MethodHandle playerConnectionSendPacket = null;
-    if(craftPlayerClass != null && packetClass != null) {
+    if (craftPlayerClass != null && packetClass != null) {
       try {
         final Method getHandleMethod = craftPlayerClass.getMethod("getHandle");
         final Class<?> entityPlayerClass = getHandleMethod.getReturnType();
@@ -136,8 +134,8 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
           final Class<?> serverGamePacketListenerImpl = ServerGamePacketListenerImplAccessor.getType();
           for(final Field field : entityPlayerClass.getDeclaredFields()) {
             final int modifiers = field.getModifiers();
-            if(Modifier.isPublic(modifiers) && !Modifier.isFinal(modifiers)) {
-              if(serverGamePacketListenerImpl == null || field.getType().equals(serverGamePacketListenerImpl)) {
+            if (Modifier.isPublic(modifiers) && !Modifier.isFinal(modifiers)) {
+              if (serverGamePacketListenerImpl == null || field.getType().equals(serverGamePacketListenerImpl)) {
                 entityPlayerGetConnection = lookup().unreflectGetter(field);
               }
             }
@@ -165,11 +163,11 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     }
 
     public void sendPacket(final @NotNull Player player, final @Nullable Object packet) {
-      if(packet == null) return;
+      if (packet == null) return;
 
       try {
         PLAYER_CONNECTION_SEND_PACKET.invoke(ENTITY_PLAYER_GET_CONNECTION.invoke(CRAFT_PLAYER_GET_HANDLE.invoke(player)), packet);
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to invoke CraftBukkit sendPacket: %s", packet);
       }
     }
@@ -183,7 +181,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     public Object createMessage(final @NotNull V viewer, final @NotNull Component message) {
       try {
         return MinecraftComponentSerializer.get().serialize(message);
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to serialize net.minecraft.server IChatBaseComponent: %s", message);
         return null;
       }
@@ -227,7 +225,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
           legacyChatPacketConstructor = findConstructor(chatPacketClass, CLASS_CHAT_COMPONENT, int.class);
         }
       }
-    } catch(final Throwable error) {
+    } catch (final Throwable error) {
       logError(error, "Failed to initialize ClientboundChatPacket constructor");
     }
 
@@ -246,7 +244,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
       final Object messageType = type == MessageType.CHAT ? MESSAGE_TYPE_CHAT : MESSAGE_TYPE_SYSTEM;
       try {
         this.sendMessage(viewer, CHAT_PACKET_CONSTRUCTOR.invoke(message, messageType, source.uuid()));
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to invoke PacketPlayOutChat constructor: %s %s", message, messageType);
       }
     }
@@ -303,7 +301,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     public Object createMessage(final @NotNull Player viewer, final @NotNull Component message) {
       try {
         return CONSTRUCTOR_TITLE_MESSAGE.invoke(TITLE_ACTION_ACTIONBAR, super.createMessage(viewer, message));
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to invoke PacketPlayOutTitle constructor: %s", message);
         return null;
       }
@@ -323,7 +321,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
       final TextComponent legacyMessage = Component.text(legacy().serialize(message));
       try {
         return LEGACY_CHAT_PACKET_CONSTRUCTOR.invoke(super.createMessage(viewer, legacyMessage), (byte) 2);
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to invoke PacketPlayOutChat constructor: %s", legacyMessage);
         return null;
       }
@@ -335,7 +333,25 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     private static final Class<?> CLASS_WRITABLE_REGISTRY = WritableRegistryAccessor.getType();
     private static final Class<?> CLASS_SOUND_SOURCE = SoundSourceAccessor.getType();
 
+      private static final Class<?> CLASS_CLIENTBOUND_CUSTOM_SOUND = findClass(
+              findNmsClassName("PacketPlayOutCustomSoundEffect"),
+              findMcClassName("network.protocol.game.ClientboundCustomSoundPacket"),
+              findMcClassName("network.protocol.game.PacketPlayOutCustomSoundEffect")
+      );
+      private static final Class<?> CLASS_SOUND_EFFECT = findClass(
+              findNmsClassName("SoundEffect"),
+              findMcClassName("sounds.SoundEffect"),
+              findMcClassName("sounds.SoundEvent")
+      );
+      private static final Class<?> CLASS_VEC3 = findClass(
+              findNmsClassName("Vec3D"),
+              findMcClassName("world.phys.Vec3D"),
+              findMcClassName("world.phys.Vec3")
+      );
+
     private static final MethodHandle NEW_CLIENTBOUND_ENTITY_SOUND;
+      private static final MethodHandle NEW_CLIENTBOUND_CUSTOM_SOUND = findConstructor(CLASS_CLIENTBOUND_CUSTOM_SOUND, ResourceLocationAccessor.getType(), CLASS_SOUND_SOURCE, CLASS_VEC3, float.class, float.class);
+      private static final MethodHandle NEW_VEC3 = findConstructor(CLASS_VEC3, double.class, double.class, double.class);
     private static final MethodHandle NEW_RESOURCE_LOCATION;
     private static final MethodHandle REGISTRY_GET_OPTIONAL;
     private static final MethodHandle SOUND_SOURCE_GET_NAME;
@@ -386,9 +402,9 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
             // it's IRegistryWritable, the registry root
             // then we'll getOptional(NEW_RESOURCE_LOCATION.invoke("minecraft", "sound_event"))
             Object rootRegistry = null;
-            for(final Field field : CLASS_REGISTRY.getDeclaredFields()) {
+            for (final Field field : CLASS_REGISTRY.getDeclaredFields()) {
               final int mask = Modifier.PROTECTED | Modifier.STATIC | Modifier.FINAL;
-              if((field.getModifiers() & mask) == mask
+              if ((field.getModifiers() & mask) == mask
                 && field.getType().equals(CLASS_WRITABLE_REGISTRY)) {
                 // we've found the root registry
                 field.setAccessible(true);
@@ -397,11 +413,11 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
               }
             }
 
-            if(rootRegistry != null) {
+            if (rootRegistry != null) {
               registrySoundEvent = ((Optional<?>) REGISTRY_GET_OPTIONAL.invoke(rootRegistry, NEW_RESOURCE_LOCATION.invoke("minecraft", "sound_event"))).orElse(null);
             }
           }
-        } catch(final Throwable thr) {
+        } catch (final Throwable thr) {
           logError(thr, "Failed to initialize EntitySound CraftBukkit facet");
         }
       }
@@ -424,9 +440,9 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @Override
     public Object createForEmitter(final net.kyori.adventure.sound.@NotNull Sound sound, final net.kyori.adventure.sound.Sound.@NotNull Emitter emitter) {
       final Entity entity;
-      if(emitter instanceof BukkitEmitter) {
+      if (emitter instanceof BukkitEmitter) {
         entity = ((BukkitEmitter) emitter).entity;
-      } else if(emitter instanceof Entity) { // how? but just in case
+      } else if (emitter instanceof Entity) { // how? but just in case
         entity = (Entity) emitter;
       } else {
         return null;
@@ -437,30 +453,33 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     private Object createForEntity(final net.kyori.adventure.sound.Sound sound, final Entity entity) {
       try {
         final Object nmsEntity = this.toNativeEntity(entity);
-        if(nmsEntity == null) return null;
+        if (nmsEntity == null) return null;
 
         final Object soundCategory = this.toVanilla(sound.source());
-        if(soundCategory == null) return null;
+        if (soundCategory == null) return null;
         final Object nameRl = NEW_RESOURCE_LOCATION.invoke(sound.name().namespace(), sound.name().value());
         final java.util.Optional<?> event = (Optional<?>) REGISTRY_GET_OPTIONAL.invoke(REGISTRY_SOUND_EVENT, nameRl);
-        if(event.isPresent()) {
+        if (event.isPresent()) {
           return NEW_CLIENTBOUND_ENTITY_SOUND.invoke(event.get(), soundCategory, nmsEntity, sound.volume(), sound.pitch());
+        } else if (NEW_CLIENTBOUND_CUSTOM_SOUND != null && NEW_VEC3 != null) {
+          final Location loc = entity.getLocation();
+          return NEW_CLIENTBOUND_CUSTOM_SOUND.invoke(nameRl, soundCategory, NEW_VEC3.invoke(loc.getX(), loc.getY(), loc.getZ()), sound.volume(), sound.pitch());
         }
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to send sound tracking an entity");
       }
       return null;
     }
 
     private Object toNativeEntity(final Entity entity) throws Throwable {
-      if(!CLASS_CRAFT_ENTITY.isInstance(entity)) return null;
+      if (!CLASS_CRAFT_ENTITY.isInstance(entity)) return null;
 
       return CRAFT_ENTITY_GET_HANDLE.invoke(entity);
     }
 
     private Object toVanilla(final net.kyori.adventure.sound.Sound.Source source) throws Throwable {
-      if(MC_SOUND_SOURCE_BY_NAME.isEmpty()) {
-        for(final Object enumConstant : CLASS_SOUND_SOURCE.getEnumConstants()) {
+      if (MC_SOUND_SOURCE_BY_NAME.isEmpty()) {
+        for (final Object enumConstant : CLASS_SOUND_SOURCE.getEnumConstants()) {
           MC_SOUND_SOURCE_BY_NAME.put((String) SOUND_SOURCE_GET_NAME.invoke(enumConstant), enumConstant);
         }
       }
@@ -529,7 +548,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     public void contributeTitle(final @NotNull List<Object> coll, final @NotNull Object title) {
       try {
         coll.add(CONSTRUCTOR_SET_TITLE.invoke(title));
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to invoke title packet constructor");
       }
     }
@@ -538,7 +557,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     public void contributeSubtitle(final @NotNull List<Object> coll, final @NotNull Object subtitle) {
       try {
         coll.add(CONSTRUCTOR_SET_SUBTITLE.invoke(subtitle));
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to invoke subtitle packet constructor");
       }
     }
@@ -547,7 +566,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     public void contributeTimes(final @NotNull List<Object> coll, final int inTicks, final int stayTicks, final int outTicks) {
       try {
         coll.add(CONSTRUCTOR_SET_TITLE_ANIMATION.invoke(inTicks, stayTicks, outTicks));
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to invoke title animations packet constructor");
       }
     }
@@ -559,7 +578,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
     @Override
     public void showTitle(final @NotNull Player viewer, final @NotNull List<?> packets) {
-      for(final Object packet : packets) {
+      for (final Object packet : packets) {
         this.sendMessage(viewer, packet);
       }
     }
@@ -567,12 +586,12 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @Override
     public void clearTitle(final @NotNull Player viewer) {
       try {
-        if(CONSTRUCTOR_CLEAR_TITLES != null) {
+        if (CONSTRUCTOR_CLEAR_TITLES != null) {
           this.sendPacket(viewer, CONSTRUCTOR_CLEAR_TITLES.invoke(false));
         } else {
           viewer.sendTitle("", "", -1, -1, -1);
         }
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to clear title");
       }
     }
@@ -580,12 +599,12 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @Override
     public void resetTitle(final @NotNull Player viewer) {
       try {
-        if(CONSTRUCTOR_CLEAR_TITLES != null) {
+        if (CONSTRUCTOR_CLEAR_TITLES != null) {
           this.sendPacket(viewer, CONSTRUCTOR_CLEAR_TITLES.invoke(true));
         } else {
           viewer.resetTitle();
         }
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to clear title");
       }
     }
@@ -606,7 +625,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     public void contributeTitle(final @NotNull List<Object> coll, final @NotNull Object title) {
       try {
         coll.add(CONSTRUCTOR_TITLE_MESSAGE.invoke(TITLE_ACTION_TITLE, title));
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to invoke title packet constructor");
       }
     }
@@ -615,7 +634,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     public void contributeSubtitle(final @NotNull List<Object> coll, final @NotNull Object subtitle) {
       try {
         coll.add(CONSTRUCTOR_TITLE_MESSAGE.invoke(TITLE_ACTION_SUBTITLE, subtitle));
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to invoke subtitle packet constructor");
       }
     }
@@ -624,7 +643,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     public void contributeTimes(final @NotNull List<Object> coll, final int inTicks, final int stayTicks, final int outTicks) {
       try {
         coll.add(CONSTRUCTOR_TITLE_TIMES.invoke(inTicks, stayTicks, outTicks));
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to invoke title animations packet constructor");
       }
     }
@@ -636,7 +655,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
     @Override
     public void showTitle(final @NotNull Player viewer, final @NotNull List<?> packets) {
-      for(final Object packet : packets) {
+      for (final Object packet : packets) {
         this.sendMessage(viewer, packet);
       }
     }
@@ -644,12 +663,12 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @Override
     public void clearTitle(final @NotNull Player viewer) {
       try {
-        if(TITLE_ACTION_CLEAR != null) {
+        if (TITLE_ACTION_CLEAR != null) {
           this.sendPacket(viewer, CONSTRUCTOR_TITLE_MESSAGE.invoke(TITLE_ACTION_CLEAR, null));
         } else {
           viewer.sendTitle("", "", -1, -1, -1);
         }
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to clear title");
       }
     }
@@ -657,12 +676,12 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @Override
     public void resetTitle(final @NotNull Player viewer) {
       try {
-        if(TITLE_ACTION_RESET != null) {
+        if (TITLE_ACTION_RESET != null) {
           this.sendPacket(viewer, CONSTRUCTOR_TITLE_MESSAGE.invoke(TITLE_ACTION_RESET, null));
         } else {
           viewer.resetTitle();
         }
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to clear title");
       }
     }
@@ -702,7 +721,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
       try {
         inventory.setItemInHand(book);
         this.sendOpenPacket(viewer);
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to send openBook packet: %s", book);
       } finally {
         inventory.setItemInHand(current);
@@ -716,7 +735,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
     private static CompoundBinaryTag tagFor(final @NotNull String title, final @NotNull String author, final @NotNull Iterable<Object> pages) {
       final ListBinaryTag.Builder<StringBinaryTag> builder = ListBinaryTag.builder(BinaryTagTypes.STRING);
-      for(final Object page : pages) {
+      for (final Object page : pages) {
         builder.add(StringBinaryTag.of((String) page));
       }
       return CompoundBinaryTag.builder()
@@ -734,7 +753,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     static {
       MethodHandle nbtIoDeserialize = null;
 
-      if(CLASS_NBT_IO != null) { // obf obf obf
+      if (CLASS_NBT_IO != null) { // obf obf obf
         // public static NBTCompressedStreamTools.___(DataInputStream)NBTTagCompound
         if (NbtIoAccessor.getMethodRead1() != null) {
           try {
@@ -762,9 +781,9 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
       final TrustedByteArrayOutputStream output = new TrustedByteArrayOutputStream();
       BinaryTagIO.writer().write(tag, output);
 
-      try(final DataInputStream dis = new DataInputStream(output.toInputStream())) {
+      try (final DataInputStream dis = new DataInputStream(output.toInputStream())) {
         return NBT_IO_DESERIALIZE.invoke(dis);
-      } catch(final Throwable err) {
+      } catch (final Throwable err) {
         throw new IOException(err);
       }
     }
@@ -797,7 +816,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     private static final MethodHandle CRAFT_ITEMSTACK_CRAFT_MIRROR = findStaticMethod(CLASS_CRAFT_ITEMSTACK, "asCraftMirror", CLASS_CRAFT_ITEMSTACK, CLASS_MC_ITEMSTACK);
 
     private ItemStack applyTag(final @NotNull ItemStack input, final CompoundBinaryTag binTag) {
-      if(CRAFT_ITEMSTACK_NMS_COPY == null || MC_ITEMSTACK_SET_TAG == null || CRAFT_ITEMSTACK_CRAFT_MIRROR == null) {
+      if (CRAFT_ITEMSTACK_NMS_COPY == null || MC_ITEMSTACK_SET_TAG == null || CRAFT_ITEMSTACK_CRAFT_MIRROR == null) {
         return input;
       }
       try {
@@ -806,7 +825,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
         MC_ITEMSTACK_SET_TAG.invoke(stack, tag);
         return (ItemStack) CRAFT_ITEMSTACK_CRAFT_MIRROR.invoke(stack);
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to apply NBT tag to ItemStack: %s %s", input, binTag);
         return input;
       }
@@ -860,7 +879,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
     static {
       Object packetType = null;
-      if(CLASS_RESOURCE_LOCATION != null) {
+      if (CLASS_RESOURCE_LOCATION != null) {
         try {
           packetType = ResourceLocationAccessor.getConstructor1().newInstance("minecraft:book_open");
         } catch(final InstantiationException | IllegalAccessException | InvocationTargetException e) {
@@ -931,19 +950,19 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
       MethodHandle nmsBossBattleSetName = null;
       MethodHandle nmsBossBattleSendUpdate = null;
 
-      if(CLASS_CRAFT_BOSS_BAR != null && CLASS_CHAT_COMPONENT != null && BOSS_BAR_ACTION_TITLE != null) {
+      if (CLASS_CRAFT_BOSS_BAR != null && CLASS_CHAT_COMPONENT != null && BOSS_BAR_ACTION_TITLE != null) {
         try {
           final Field craftBossBarHandleField = needField(CLASS_CRAFT_BOSS_BAR, "handle");
           craftBossBarHandle = lookup().unreflectGetter(craftBossBarHandleField);
           final Class<?> nmsBossBattleType = craftBossBarHandleField.getType();
-          for(final Field field : nmsBossBattleType.getFields()) {
-            if(field.getType().equals(CLASS_CHAT_COMPONENT)) {
+          for (final Field field : nmsBossBattleType.getFields()) {
+            if (field.getType().equals(CLASS_CHAT_COMPONENT)) {
               nmsBossBattleSetName = lookup().unreflectSetter(field);
               break;
             }
           }
           nmsBossBattleSendUpdate = lookup().findVirtual(nmsBossBattleType, "sendUpdate", methodType(void.class, CLASS_BOSS_BAR_ACTION));
-        } catch(final Throwable error) {
+        } catch (final Throwable error) {
           logError(error, "Failed to initialize CraftBossBar constructor");
         }
       }
@@ -982,7 +1001,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
         // Boss bar was introduced MC 1.9, but the name setter method didn't exist until later versions, so for max compatibility we'll do field set and update separately
         NMS_BOSS_BATTLE_SET_NAME.invoke(handle, text);
         NMS_BOSS_BATTLE_SEND_UPDATE.invoke(handle, BOSS_BAR_ACTION_TITLE);
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to set CraftBossBar name: %s %s", this.bar, newName);
         super.bossBarNameChanged(bar, oldName, newName); // Fallback to the Bukkit method
       }
@@ -1032,19 +1051,19 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
       E entity = null;
       Object handle = null;
 
-      if(SUPPORTED) {
+      if (SUPPORTED) {
         try {
-          if(CRAFT_WORLD_CREATE_ENTITY != null) {
+          if (CRAFT_WORLD_CREATE_ENTITY != null) {
             final Object nmsEntity = CRAFT_WORLD_CREATE_ENTITY.invoke(location.getWorld(), location, entityClass);
             entity = (E) NMS_ENTITY_GET_BUKKIT_ENTITY.invoke(nmsEntity);
-          } else if(Wither.class.isAssignableFrom(entityClass) && NEW_ENTITY_WITHER != null) { // 1.7.10 compact
+          } else if (Wither.class.isAssignableFrom(entityClass) && NEW_ENTITY_WITHER != null) { // 1.7.10 compact
             final Object nmsEntity = NEW_ENTITY_WITHER.invoke(CRAFT_WORLD_GET_HANDLE.invoke(location.getWorld()));
             entity = (E) NMS_ENTITY_GET_BUKKIT_ENTITY.invoke(nmsEntity);
           }
-          if(CLASS_CRAFT_ENTITY.isInstance(entity)) {
+          if (CLASS_CRAFT_ENTITY.isInstance(entity)) {
             handle = CRAFT_ENTITY_GET_HANDLE.invoke(entity);
           }
-        } catch(final Throwable error) {
+        } catch (final Throwable error) {
           logError(error, "Failed to create fake entity: %s", entityClass.getSimpleName());
         }
       }
@@ -1053,7 +1072,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
       this.entityHandle = handle;
       this.viewers = new HashSet<>();
 
-      if(this.isSupported()) {
+      if (this.isSupported()) {
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
       }
     }
@@ -1066,7 +1085,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @EventHandler(ignoreCancelled = false, priority = EventPriority.MONITOR)
     public void onPlayerMove(final PlayerMoveEvent event) {
       final Player viewer = event.getPlayer();
-      if(this.viewers.contains(viewer)) {
+      if (this.viewers.contains(viewer)) {
         this.teleport(viewer, this.createPosition(viewer));
       }
     }
@@ -1074,10 +1093,10 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     public @Nullable Object createSpawnPacket() {
       // Later versions of MC add a createSpawnPacket()Packet method on Entity -- for broader support that could be used.
       // For 1.8 and 1.7 at least, we are stuck with this.
-      if(this.entity instanceof LivingEntity) {
+      if (this.entity instanceof LivingEntity) {
         try {
           return NEW_SPAWN_LIVING_PACKET.invoke(this.entityHandle);
-        } catch(final Throwable error) {
+        } catch (final Throwable error) {
           logError(error, "Failed to create spawn packet: %s", this.entity);
         }
       }
@@ -1087,7 +1106,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     public @Nullable Object createDespawnPacket() {
       try {
         return NEW_ENTITY_DESTROY_PACKET.invoke(this.entity.getEntityId());
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to create despawn packet: %s", this.entity);
         return null;
       }
@@ -1097,7 +1116,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
       try {
         final Object dataWatcher = NMS_ENTITY_GET_DATA_WATCHER.invoke(this.entityHandle);
         return NEW_ENTITY_METADATA_PACKET.invoke(this.entity.getEntityId(), dataWatcher, false);
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to create update metadata packet: %s", this.entity);
         return null;
       }
@@ -1106,14 +1125,14 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     public @Nullable Object createLocationPacket() {
       try {
         return NEW_ENTITY_TELEPORT_PACKET.invoke(this.entityHandle);
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to create teleport packet: %s", this.entity);
         return null;
       }
     }
 
     public void broadcastPacket(final @Nullable Object packet) {
-      for(final Player viewer : this.viewers) {
+      for (final Player viewer : this.viewers) {
         this.sendPacket(viewer, packet);
       }
     }
@@ -1132,20 +1151,20 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
     @Override
     public void teleport(final @NotNull Player viewer, final @Nullable Location position) {
-      if(position == null) {
+      if (position == null) {
         this.viewers.remove(viewer);
         this.sendPacket(viewer, this.createDespawnPacket());
         return;
       }
 
-      if(!this.viewers.contains(viewer)) {
+      if (!this.viewers.contains(viewer)) {
         this.sendPacket(viewer, this.createSpawnPacket());
         this.viewers.add(viewer);
       }
 
       try {
         NMS_ENTITY_SET_LOCATION.invoke(this.entityHandle, position.getX(), position.getY(), position.getZ(), position.getPitch(), position.getYaw());
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to set entity location: %s %s", this.entity, position);
       }
       this.sendPacket(viewer, this.createLocationPacket());
@@ -1154,11 +1173,11 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @Override
     public void metadata(final int position, final @NotNull Object data) {
       // DataWatchers were refactored at some point and use TrackedData as their key, not ints -- but this works for 1.8
-      if(DATA_WATCHER_WATCH != null) {
+      if (DATA_WATCHER_WATCH != null) {
         try {
           final Object dataWatcher = NMS_ENTITY_GET_DATA_WATCHER.invoke(this.entityHandle);
           DATA_WATCHER_WATCH.invoke(dataWatcher, position, data);
-        } catch(final Throwable error) {
+        } catch (final Throwable error) {
           logError(error, "Failed to set entity metadata: %s %s=%s", this.entity, position, data);
         }
         this.broadcastPacket(this.createMetadataPacket());
@@ -1167,10 +1186,10 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
     @Override
     public void invisible(final boolean invisible) {
-      if(NMS_ENTITY_SET_INVISIBLE != null) {
+      if (NMS_ENTITY_SET_INVISIBLE != null) {
         try {
           NMS_ENTITY_SET_INVISIBLE.invoke(this.entityHandle, invisible);
-        } catch(final Throwable error) {
+        } catch (final Throwable error) {
           logError(error, "Failed to change entity visibility: %s", this.entity);
         }
       }
@@ -1179,7 +1198,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @Deprecated
     @Override
     public void health(final float health) {
-      if(this.entity instanceof Damageable) {
+      if (this.entity instanceof Damageable) {
         final Damageable entity = (Damageable) this.entity;
         entity.setHealth(health * (entity.getMaxHealth() - 0.1f) + 0.1f);
         this.broadcastPacket(this.createMetadataPacket());
@@ -1195,7 +1214,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @Override
     public void close() {
       HandlerList.unregisterAll(this);
-      for(final Player viewer : new LinkedList<>(this.viewers)) {
+      for (final Player viewer : new LinkedList<>(this.viewers)) {
         this.teleport(viewer, null);
       }
     }
@@ -1265,9 +1284,9 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     );
 
     private static MethodHandle first(final MethodHandle... handles) {
-      for(int i = 0; i < handles.length; i++) {
+      for (int i = 0; i < handles.length; i++) {
         final MethodHandle handle = handles[i];
-        if(handle != null) {
+        if (handle != null) {
           return handle;
         }
       }
@@ -1289,14 +1308,14 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @Override
     public void send(final Player viewer, @Nullable Object header, @Nullable Object footer) {
       try {
-        if(CRAFT_PLAYER_TAB_LIST_HEADER != null && CRAFT_PLAYER_TAB_LIST_FOOTER != null) {
-          if(header == null) {
+        if (CRAFT_PLAYER_TAB_LIST_HEADER != null && CRAFT_PLAYER_TAB_LIST_FOOTER != null) {
+          if (header == null) {
             header = CRAFT_PLAYER_TAB_LIST_HEADER.get(viewer);
           } else {
             CRAFT_PLAYER_TAB_LIST_HEADER.set(viewer, header);
           }
 
-          if(footer == null) {
+          if (footer == null) {
             footer = CRAFT_PLAYER_TAB_LIST_FOOTER.get(viewer);
           } else {
             CRAFT_PLAYER_TAB_LIST_FOOTER.set(viewer, footer);
@@ -1304,7 +1323,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
         }
 
         final Object packet;
-        if(CLIENTBOUND_TAB_LIST_PACKET_CTOR != null) {
+        if (CLIENTBOUND_TAB_LIST_PACKET_CTOR != null) {
           packet = this.create117Packet(viewer, header, footer);
         } else {
           packet = CLIENTBOUND_TAB_LIST_PACKET_CTOR_PRE_1_17.invoke();
@@ -1313,7 +1332,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
         }
 
         this.sendPacket(viewer, packet);
-      } catch(final Throwable thr) {
+      } catch (final Throwable thr) {
         logError(thr, "Failed to send tab list header and footer to %s", viewer);
       }
     }

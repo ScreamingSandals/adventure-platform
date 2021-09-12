@@ -29,8 +29,15 @@ import com.viaversion.viaversion.api.protocol.Protocol;
 import com.viaversion.viaversion.api.protocol.packet.ClientboundPacketType;
 import com.viaversion.viaversion.api.protocol.packet.PacketWrapper;
 import com.viaversion.viaversion.api.type.Type;
+import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import net.kyori.adventure.audience.MessageType;
 import net.kyori.adventure.identity.Identity;
 import net.kyori.adventure.platform.facet.Facet;
@@ -40,17 +47,9 @@ import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.text.MessageFormat;
-import java.util.Collection;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
 import static net.kyori.adventure.platform.facet.Knob.logError;
-import static net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson;
 import static net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.colorDownsamplingGson;
+import static net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson;
 
 // Non-API
 @SuppressWarnings({"checkstyle:FilteringWriteTag", "checkstyle:MissingJavadocType", "checkstyle:MissingJavadocMethod"})
@@ -64,7 +63,7 @@ public class ViaFacet<V> extends FacetBase<V> implements Facet.Message<V, String
       // Check if the ViaVersion API is present
       Class.forName(PACKAGE + ".api.ViaManager");
       supported = true;
-    } catch(final Throwable error) {
+    } catch (final Throwable error) {
       // ignore
     }
     SUPPORTED = supported && Knob.isEnabled("viaversion", true);
@@ -100,7 +99,7 @@ public class ViaFacet<V> extends FacetBase<V> implements Facet.Message<V, String
 
   public int findProtocol(final @NotNull V viewer) {
     final UserConnection connection = this.findConnection(viewer);
-    if(connection != null) {
+    if (connection != null) {
       return connection.getProtocolInfo().getProtocolVersion();
     }
     return -1;
@@ -110,7 +109,7 @@ public class ViaFacet<V> extends FacetBase<V> implements Facet.Message<V, String
   @Override
   public String createMessage(final @NotNull V viewer, final @NotNull Component message) {
     final int protocol = this.findProtocol(viewer);
-    if(protocol >= PROTOCOL_HEX_COLOR) {
+    if (protocol >= PROTOCOL_HEX_COLOR) {
       return gson().serialize(message);
     } else {
       return colorDownsamplingGson().serialize(message);
@@ -135,13 +134,13 @@ public class ViaFacet<V> extends FacetBase<V> implements Facet.Message<V, String
       try {
         protocolClass = (Class<? extends Protocol<?, ?, ?, ?>>) Class.forName(protocolClassName);
         packetClass = (Class<? extends ClientboundPacketType>) Class.forName(packetClassName);
-        for(final ClientboundPacketType type : packetClass.getEnumConstants()) {
-          if(type.getName().equals(packetName)) {
+        for (final ClientboundPacketType type : packetClass.getEnumConstants()) {
+          if (type.getName().equals(packetName)) {
             packetId = type.getId();
             break;
           }
         }
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         // No-op, ViaVersion is not loaded
       }
 
@@ -163,10 +162,10 @@ public class ViaFacet<V> extends FacetBase<V> implements Facet.Message<V, String
     }
 
     public void sendPacket(final @NotNull PacketWrapper packet) {
-      if(packet.user() == null) return;
+      if (packet.user() == null) return;
       try {
         packet.send(this.protocolClass);
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         logError(error, "Failed to send ViaVersion packet: %s %s", packet.user(), packet);
       }
     }
@@ -260,7 +259,7 @@ public class ViaFacet<V> extends FacetBase<V> implements Facet.Message<V, String
     @Override
     public @Nullable Consumer<V> completeTitle(final @NotNull List<Consumer<PacketWrapper>> coll) {
       return v -> {
-        for(int i = 0, length = coll.size(); i < length; i++) {
+        for (int i = 0, length = coll.size(); i < length; i++) {
           final PacketWrapper pkt = this.createPacket(v);
           coll.get(i).accept(pkt);
           this.sendPacket(pkt);
@@ -333,7 +332,7 @@ public class ViaFacet<V> extends FacetBase<V> implements Facet.Message<V, String
 
     @Override
     public void bossBarNameChanged(final net.kyori.adventure.bossbar.@NotNull BossBar bar, final @NotNull Component oldName, final @NotNull Component newName) {
-      if(!this.viewers.isEmpty()) {
+      if (!this.viewers.isEmpty()) {
         this.title = this.createMessage(this.viewers.iterator().next(), newName);
         this.broadcastPacket(ACTION_TITLE);
       }
@@ -367,39 +366,39 @@ public class ViaFacet<V> extends FacetBase<V> implements Facet.Message<V, String
       final PacketWrapper packet = this.createPacket(viewer);
       packet.write(Type.UUID, this.id);
       packet.write(Type.VAR_INT, action);
-      if(action == ACTION_ADD || action == ACTION_TITLE) {
+      if (action == ACTION_ADD || action == ACTION_TITLE) {
         packet.write(Type.STRING, this.title);
       }
-      if(action == ACTION_ADD || action == ACTION_HEALTH) {
+      if (action == ACTION_ADD || action == ACTION_HEALTH) {
         packet.write(Type.FLOAT, this.health);
       }
-      if(action == ACTION_ADD || action == ACTION_STYLE) {
+      if (action == ACTION_ADD || action == ACTION_STYLE) {
         packet.write(Type.VAR_INT, this.color);
         packet.write(Type.VAR_INT, this.overlay);
       }
-      if(action == ACTION_ADD || action == ACTION_FLAG) {
+      if (action == ACTION_ADD || action == ACTION_FLAG) {
         packet.write(Type.BYTE, this.flags);
       }
       this.sendPacket(packet);
     }
 
     public void broadcastPacket(final int action) {
-      if(this.isEmpty()) return;
-      for(final V viewer : this.viewers) {
+      if (this.isEmpty()) return;
+      for (final V viewer : this.viewers) {
         this.sendPacket(viewer, action);
       }
     }
 
     @Override
     public void addViewer(final @NotNull V viewer) {
-      if(this.viewers.add(viewer)) {
+      if (this.viewers.add(viewer)) {
         this.sendPacket(viewer, ACTION_ADD);
       }
     }
 
     @Override
     public void removeViewer(final @NotNull V viewer) {
-      if(this.viewers.remove(viewer)) {
+      if (this.viewers.remove(viewer)) {
         this.sendPacket(viewer, ACTION_REMOVE);
       }
     }

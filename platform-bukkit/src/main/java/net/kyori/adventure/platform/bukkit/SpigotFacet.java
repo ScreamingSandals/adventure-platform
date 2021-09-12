@@ -40,14 +40,14 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static net.kyori.adventure.platform.bukkit.BukkitComponentSerializer.gson;
+import static net.kyori.adventure.platform.bukkit.BukkitComponentSerializer.legacy;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findClass;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.hasClass;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.hasMethod;
 import static net.kyori.adventure.platform.facet.Knob.isEnabled;
 import static net.kyori.adventure.platform.facet.Knob.logUnsupported;
 import static net.kyori.adventure.text.serializer.bungeecord.BungeeComponentSerializer.isNative;
-import static net.kyori.adventure.text.serializer.craftbukkit.BukkitComponentSerializer.gson;
-import static net.kyori.adventure.text.serializer.craftbukkit.BukkitComponentSerializer.legacy;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findClass;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.hasClass;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.hasMethod;
 
 class SpigotFacet<V extends CommandSender> extends FacetBase<V> {
   private static final boolean SUPPORTED = isEnabled("spigot", true) && isNative();
@@ -71,9 +71,8 @@ class SpigotFacet<V extends CommandSender> extends FacetBase<V> {
       super(viewerClass);
     }
 
-    @NotNull
     @Override
-    public BaseComponent @NotNull[] createMessage(final @NotNull V viewer, final @NotNull Component message) {
+    public @NotNull BaseComponent@NotNull[] createMessage(final @NotNull V viewer, final @NotNull Component message) {
       return SERIALIZER.serialize(message);
     }
   }
@@ -110,9 +109,9 @@ class SpigotFacet<V extends CommandSender> extends FacetBase<V> {
     }
 
     private @Nullable ChatMessageType createType(final @NotNull MessageType type) {
-      if(type == MessageType.CHAT) {
+      if (type == MessageType.CHAT) {
         return ChatMessageType.CHAT;
-      } else if(type == MessageType.SYSTEM) {
+      } else if (type == MessageType.SYSTEM) {
         return ChatMessageType.SYSTEM;
       }
       logUnsupported(this, type);
@@ -123,7 +122,7 @@ class SpigotFacet<V extends CommandSender> extends FacetBase<V> {
     @SuppressWarnings("deprecation")
     public void sendMessage(final @NotNull Player viewer, final @NotNull Identity source, final BaseComponent @NotNull[] message, final @NotNull MessageType type) {
       final ChatMessageType chat = this.createType(type);
-      if(chat != null) {
+      if (chat != null) {
         viewer.spigot().sendMessage(chat, message);
       }
     }
@@ -149,14 +148,13 @@ class SpigotFacet<V extends CommandSender> extends FacetBase<V> {
       return super.isSupported() && SUPPORTED;
     }
 
-    @NotNull
     @Override
-    public ItemStack createBook(final @NotNull String title, final @NotNull String author, final @NotNull Iterable<BaseComponent[]> pages) {
+    public @NotNull ItemStack createBook(final @NotNull String title, final @NotNull String author, final @NotNull Iterable<BaseComponent[]> pages) {
       final ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
       final ItemMeta meta = book.getItemMeta();
-      if(meta instanceof BookMeta) {
+      if (meta instanceof BookMeta) {
         final BookMeta spigot = (BookMeta) meta;
-        for(final BaseComponent[] page : pages) {
+        for (final BaseComponent[] page : pages) {
           spigot.spigot().addPage(page);
         }
         spigot.setTitle(title);

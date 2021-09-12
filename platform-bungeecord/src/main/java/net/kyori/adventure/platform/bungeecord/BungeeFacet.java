@@ -23,15 +23,21 @@
  */
 package net.kyori.adventure.platform.bungeecord;
 
+import java.util.Collection;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArraySet;
 import net.kyori.adventure.audience.MessageType;
 import net.kyori.adventure.identity.Identity;
+import net.kyori.adventure.permission.PermissionChecker;
 import net.kyori.adventure.platform.facet.Facet;
 import net.kyori.adventure.platform.facet.FacetBase;
+import net.kyori.adventure.platform.facet.FacetPointers;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.util.TriState;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.ProxyServer;
-import net.md_5.bungee.api.Title;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.connection.Connection;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
@@ -39,14 +45,9 @@ import net.md_5.bungee.chat.ComponentSerializer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArraySet;
-
 import static net.kyori.adventure.platform.facet.Knob.logUnsupported;
-import static net.kyori.adventure.text.serializer.bungeecord.BungeeComponentSerializer.legacy;
 import static net.kyori.adventure.text.serializer.bungeecord.BungeeComponentSerializer.get;
+import static net.kyori.adventure.text.serializer.bungeecord.BungeeComponentSerializer.legacy;
 
 class BungeeFacet<V extends CommandSender> extends FacetBase<V> {
   static final BaseComponent[] EMPTY_COMPONENT_ARRAY = new BaseComponent[0];
@@ -83,7 +84,7 @@ class BungeeFacet<V extends CommandSender> extends FacetBase<V> {
 
     @Override
     public BaseComponent @NotNull[] createMessage(final @NotNull ProxiedPlayer viewer, final @NotNull Component message) {
-      if(viewer.getPendingConnection().getVersion() >= PROTOCOL_HEX_COLOR) {
+      if (viewer.getPendingConnection().getVersion() >= PROTOCOL_HEX_COLOR) {
         return get().serialize(message);
       } else {
         return legacy().serialize(message);
@@ -93,9 +94,9 @@ class BungeeFacet<V extends CommandSender> extends FacetBase<V> {
 
   static class ChatPlayer extends Message implements Facet.Chat<ProxiedPlayer, BaseComponent[]> {
     public @Nullable ChatMessageType createType(final @NotNull MessageType type) {
-      if(type == MessageType.CHAT) {
+      if (type == MessageType.CHAT) {
         return ChatMessageType.CHAT;
-      } else if(type == MessageType.SYSTEM) {
+      } else if (type == MessageType.SYSTEM) {
         return ChatMessageType.SYSTEM;
       }
       logUnsupported(this, type);
@@ -105,7 +106,7 @@ class BungeeFacet<V extends CommandSender> extends FacetBase<V> {
     @Override
     public void sendMessage(final @NotNull ProxiedPlayer viewer, final @NotNull Identity source, final BaseComponent @NotNull [] message, final @NotNull MessageType type) {
       final ChatMessageType chat = this.createType(type);
-      if(chat != null) {
+      if (chat != null) {
         viewer.sendMessage(chat, message);
       }
     }
@@ -139,9 +140,9 @@ class BungeeFacet<V extends CommandSender> extends FacetBase<V> {
 
     @Override
     public void contributeTimes(final net.md_5.bungee.api.@NotNull Title coll, final int inTicks, final int stayTicks, final int outTicks) {
-      if(inTicks > -1) coll.fadeIn(inTicks);
-      if(stayTicks > -1) coll.stay(stayTicks);
-      if(outTicks > -1) coll.fadeOut(outTicks);
+      if (inTicks > -1) coll.fadeIn(inTicks);
+      if (stayTicks > -1) coll.stay(stayTicks);
+      if (outTicks > -1) coll.fadeOut(outTicks);
     }
 
     @Nullable
@@ -202,7 +203,7 @@ class BungeeFacet<V extends CommandSender> extends FacetBase<V> {
 
     @Override
     public void bossBarNameChanged(final net.kyori.adventure.bossbar.@NotNull BossBar bar, final @NotNull Component oldName, final @NotNull Component newName) {
-      if(!this.viewers.isEmpty()) {
+      if (!this.viewers.isEmpty()) {
         this.bar.setTitle(ComponentSerializer.toString(this.createMessage(this.viewers.iterator().next(), newName)));
         this.broadcastPacket(ACTION_TITLE);
       }
@@ -256,11 +257,11 @@ class BungeeFacet<V extends CommandSender> extends FacetBase<V> {
     }
 
     private void broadcastPacket(final int action) {
-      if(this.isEmpty()) return;
+      if (this.isEmpty()) return;
 
       synchronized(this.bar) {
         this.bar.setAction(action);
-        for(final ProxiedPlayer viewer : this.viewers) {
+        for (final ProxiedPlayer viewer : this.viewers) {
           viewer.unsafe().sendPacket(this.bar);
         }
       }
@@ -270,7 +271,7 @@ class BungeeFacet<V extends CommandSender> extends FacetBase<V> {
       synchronized(this.bar) {
         final int lastAction = this.bar.getAction();
         this.bar.setAction(action);
-        for(final ProxiedPlayer viewer : viewers) {
+        for (final ProxiedPlayer viewer : viewers) {
           viewer.unsafe().sendPacket(this.bar);
         }
         this.bar.setAction(lastAction);
@@ -285,6 +286,36 @@ class BungeeFacet<V extends CommandSender> extends FacetBase<V> {
       viewer.setTabHeader(
         header == null ? EMPTY_COMPONENT_ARRAY : header,
         footer == null ? EMPTY_COMPONENT_ARRAY : footer);
+    }
+  }
+
+  static final class CommandSenderPointers extends BungeeFacet<CommandSender> implements Facet.Pointers<CommandSender> {
+    CommandSenderPointers() {
+      super(CommandSender.class);
+    }
+
+    @Override
+    public void contributePointers(final CommandSender viewer, final net.kyori.adventure.pointer.Pointers.Builder builder) {
+      builder.withDynamic(Identity.NAME, viewer::getName);
+      // todo: bungee doesn't expose any sort of TriState/isPermissionSet value :((((
+      builder.withStatic(PermissionChecker.POINTER, perm -> viewer.hasPermission(perm) ? TriState.TRUE : TriState.FALSE);
+      if (!(viewer instanceof ProxiedPlayer)) {
+        builder.withStatic(FacetPointers.TYPE, viewer == ProxyServer.getInstance().getConsole() ? FacetPointers.Type.CONSOLE : FacetPointers.Type.OTHER);
+      }
+    }
+  }
+
+  static final class PlayerPointers extends BungeeFacet<ProxiedPlayer> implements Facet.Pointers<ProxiedPlayer> {
+    PlayerPointers() {
+      super(ProxiedPlayer.class);
+    }
+
+    @Override
+    public void contributePointers(final ProxiedPlayer viewer, final net.kyori.adventure.pointer.Pointers.Builder builder) {
+      builder.withDynamic(Identity.UUID, viewer::getUniqueId);
+      builder.withDynamic(Identity.LOCALE, viewer::getLocale);
+      builder.withDynamic(FacetPointers.SERVER, () -> viewer.getServer().getInfo().getName());
+      builder.withStatic(FacetPointers.TYPE, FacetPointers.Type.PLAYER);
     }
   }
 }

@@ -21,33 +21,42 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package net.kyori.adventure.platform.facet;
+package net.kyori.adventure.text.serializer.craftbukkit;
 
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
- * A base implementation of a facet that validates viewer type.
+ * A pair of component serializers for {@link org.bukkit.Bukkit}.
  *
- * <p>This is not supported API. Subject to change at any time.</p>
- *
- * @param <V> the viewer type
  * @since 4.0.0
+ * @deprecated for removal, use {@link net.kyori.adventure.platform.bukkit.BukkitComponentSerializer} instead
  */
-public abstract class FacetBase<V> implements Facet<V> {
-  protected final Class<? extends V> viewerClass;
-
-  protected FacetBase(final @Nullable Class<? extends V> viewerClass) {
-    this.viewerClass = viewerClass;
+@Deprecated
+public final class BukkitComponentSerializer {
+  private BukkitComponentSerializer() {
   }
 
-  @Override
-  public boolean isSupported() {
-    return this.viewerClass != null;
+  /**
+   * Gets the legacy component serializer.
+   *
+   * @return a legacy component serializer
+   * @since 4.0.0
+   */
+  public static @NotNull LegacyComponentSerializer legacy() {
+    return net.kyori.adventure.platform.bukkit.BukkitComponentSerializer.legacy();
   }
 
-  @Override
-  public boolean isApplicable(final @NotNull V viewer) {
-    return this.viewerClass != null && this.viewerClass.isInstance(viewer);
+  /**
+   * Gets the gson component serializer.
+   *
+   * <p>Not available on servers before 1.8, will be {@code null}.</p>
+   *
+   * @return a gson component serializer
+   * @since 4.0.0
+   */
+  public static @NotNull GsonComponentSerializer gson() {
+    return net.kyori.adventure.platform.bukkit.BukkitComponentSerializer.gson();
   }
 }

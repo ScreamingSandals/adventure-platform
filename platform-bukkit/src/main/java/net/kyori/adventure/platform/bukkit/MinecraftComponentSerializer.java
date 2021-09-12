@@ -21,8 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package net.kyori.adventure.text.serializer.craftbukkit;
+package net.kyori.adventure.platform.bukkit;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.common.annotations.Beta;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Field;
@@ -36,12 +38,13 @@ import net.kyori.adventure.platform.nms.accessors.Component_i_SerializerAccessor
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.ComponentSerializer;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+import org.jetbrains.annotations.ApiStatus;
 import net.kyori.adventure.platform.nms.accessors.ComponentAccessor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static net.kyori.adventure.text.serializer.craftbukkit.BukkitComponentSerializer.gson;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.lookup;
+import static net.kyori.adventure.platform.bukkit.BukkitComponentSerializer.gson;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.lookup;
 
 /**
  * A component serializer for {@code net.minecraft.server.<version>.IChatBaseComponent}.
@@ -55,7 +58,7 @@ import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflectio
  * @see #get()
  * @since 4.0.0
  */
-@Beta // Causes users to see "UnstableApiUsage"
+@ApiStatus.Experimental // due to direct server implementation references
 public final class MinecraftComponentSerializer implements ComponentSerializer<Component, Component, Object> {
   private static final MinecraftComponentSerializer INSTANCE = new MinecraftComponentSerializer();
 
@@ -92,7 +95,7 @@ public final class MinecraftComponentSerializer implements ComponentSerializer<C
     MethodHandle textSerializerSerialize = null;
 
     try {
-      if(CLASS_CHAT_COMPONENT != null) {
+      if (CLASS_CHAT_COMPONENT != null) {
         // Chat serializer //
         final Class<?> chatSerializerClass = Component_i_SerializerAccessor.getType();
         if(chatSerializerClass != null) {
@@ -105,27 +108,27 @@ public final class MinecraftComponentSerializer implements ComponentSerializer<C
             final Method[] declaredMethods = chatSerializerClass.getDeclaredMethods();
             final Method deserialize = Arrays.stream(declaredMethods)
               .filter(m -> Modifier.isStatic(m.getModifiers()))
-              .filter(m -> m.getReturnType().equals(CLASS_CHAT_COMPONENT))
+              .filter(m -> CLASS_CHAT_COMPONENT.isAssignableFrom(m.getReturnType()))
               .filter(m -> m.getParameterCount() == 1 && m.getParameterTypes()[0].equals(String.class))
               .min(Comparator.comparing(Method::getName)) // prefer the #a method
               .orElse(null);
             final Method serialize = Arrays.stream(declaredMethods)
               .filter(m -> Modifier.isStatic(m.getModifiers()))
               .filter(m -> m.getReturnType().equals(String.class))
-              .filter(m -> m.getParameterCount() == 1 && m.getParameterTypes()[0].equals(CLASS_CHAT_COMPONENT))
+              .filter(m -> m.getParameterCount() == 1 && CLASS_CHAT_COMPONENT.isAssignableFrom(m.getParameterTypes()[0]))
               .findFirst()
               .orElse(null);
-            if(deserialize != null) {
+            if (deserialize != null) {
               textSerializerDeserialize = lookup().unreflect(deserialize);
             }
-            if(serialize != null) {
+            if (serialize != null) {
               textSerializerSerialize = lookup().unreflect(serialize);
             }
           }
         }
       }
-    } catch(final Throwable error) {
-      INITIALIZATION_ERROR.set(new UnsupportedOperationException("Erorr occurred during initialization", error));
+    } catch (final Throwable error) {
+      INITIALIZATION_ERROR.set(new UnsupportedOperationException("Error occurred during initialization", error));
     }
 
     MC_TEXT_GSON = gson;
@@ -137,7 +140,7 @@ public final class MinecraftComponentSerializer implements ComponentSerializer<C
 
   @Override
   public @NotNull Component deserialize(final @NotNull Object input) {
-    if(!SUPPORTED) throw INITIALIZATION_ERROR.get();
+    if (!SUPPORTED) throw INITIALIZATION_ERROR.get();
 
     try {
       if(MC_TEXT_GSON != null) {
@@ -145,14 +148,14 @@ public final class MinecraftComponentSerializer implements ComponentSerializer<C
         return gson().serializer().fromJson(element, Component.class);
       }
       return GsonComponentSerializer.gson().deserialize((String) TEXT_SERIALIZER_SERIALIZE.invoke(input));
-    } catch(final Throwable error) {
+    } catch (final Throwable error) {
       throw new UnsupportedOperationException(error);
     }
   }
 
   @Override
   public @NotNull Object serialize(final @NotNull Component component) {
-    if(!SUPPORTED) throw INITIALIZATION_ERROR.get();
+    if (!SUPPORTED) throw INITIALIZATION_ERROR.get();
 
     if(MC_TEXT_GSON != null) {
       final String json = gson().serializer().toJson(component);
@@ -164,7 +167,7 @@ public final class MinecraftComponentSerializer implements ComponentSerializer<C
     } else {
       try {
         return TEXT_SERIALIZER_DESERIALIZE.invoke(gson().serialize(component));
-      } catch(final Throwable error) {
+      } catch (final Throwable error) {
         throw new UnsupportedOperationException(error);
       }
     }

@@ -24,10 +24,16 @@
 package net.kyori.adventure.platform.bukkit;
 
 import com.viaversion.viaversion.api.connection.UserConnection;
+import java.util.Collection;
+import java.util.Locale;
+import java.util.function.Function;
 import net.kyori.adventure.bossbar.BossBar;
+import net.kyori.adventure.identity.Identity;
 import net.kyori.adventure.platform.facet.Facet;
 import net.kyori.adventure.platform.facet.FacetAudience;
+import net.kyori.adventure.platform.facet.FacetAudienceProvider;
 import net.kyori.adventure.platform.viaversion.ViaFacet;
+import net.kyori.adventure.pointer.Pointers;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -35,10 +41,7 @@ import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
-import java.util.Locale;
-import java.util.function.Function;
-
+@SuppressWarnings("Convert2MethodRef")
 final class BukkitAudience extends FacetAudience<CommandSender> {
   static final ThreadLocal<Plugin> PLUGIN = new ThreadLocal<>();
   private static final Function<Player, UserConnection> VIA = new BukkitFacet.ViaHook();
@@ -83,12 +86,35 @@ final class BukkitAudience extends FacetAudience<CommandSender> {
     () -> new CraftBukkitFacet.TabList(),
     () -> new BukkitFacet.TabList()
   );
+  private static final Collection<Facet.Pointers<? extends CommandSender>> POINTERS = Facet.of(
+    () -> new BukkitFacet.CommandSenderPointers(),
+    () -> new BukkitFacet.ConsoleCommandSenderPointers(),
+    () -> new BukkitFacet.PlayerPointers()
+  );
 
   private final @NotNull Plugin plugin;
+  // Bukkit only provides this as a String
+  private @Nullable Locale locale;
 
-  BukkitAudience(final @NotNull Plugin plugin, final @NotNull Collection<CommandSender> viewers, final @Nullable Locale locale) {
-    super(viewers, locale, CHAT, ACTION_BAR, TITLE, SOUND, ENTITY_SOUND, BOOK, BOSS_BAR, TAB_LIST);
+  BukkitAudience(final @NotNull Plugin plugin, final FacetAudienceProvider<?, ?> provider, final @NotNull Collection<CommandSender> viewers) {
+    super(provider, viewers, CHAT, ACTION_BAR, TITLE, SOUND, ENTITY_SOUND, BOOK, BOSS_BAR, TAB_LIST, POINTERS);
     this.plugin = plugin;
+  }
+
+  void locale(final @Nullable Locale locale) {
+    final boolean changed = this.locale != (this.locale = locale);
+    if (changed) {
+      this.refresh();
+    }
+  }
+
+  @Nullable Locale locale() {
+    return this.locale;
+  }
+
+  @Override
+  protected void contributePointers(final Pointers.Builder builder) {
+    builder.withDynamic(Identity.LOCALE, BukkitAudience.this::locale);
   }
 
   @Override

@@ -21,33 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package net.kyori.adventure.platform.facet;
-
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 /**
- * A base implementation of a facet that validates viewer type.
- *
- * <p>This is not supported API. Subject to change at any time.</p>
- *
- * @param <V> the viewer type
- * @since 4.0.0
+ * A platform for integration with legacy SpongeAPI 7 for Minecraft 1.12.
  */
-public abstract class FacetBase<V> implements Facet<V> {
-  protected final Class<? extends V> viewerClass;
-
-  protected FacetBase(final @Nullable Class<? extends V> viewerClass) {
-    this.viewerClass = viewerClass;
-  }
-
-  @Override
-  public boolean isSupported() {
-    return this.viewerClass != null;
-  }
-
-  @Override
-  public boolean isApplicable(final @NotNull V viewer) {
-    return this.viewerClass != null && this.viewerClass.isInstance(viewer);
-  }
-}
+package net.kyori.adventure.platform.spongeapi;

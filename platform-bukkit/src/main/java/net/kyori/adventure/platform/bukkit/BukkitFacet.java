@@ -25,13 +25,19 @@ package net.kyori.adventure.platform.bukkit;
 
 import com.viaversion.viaversion.api.Via;
 import com.viaversion.viaversion.api.connection.UserConnection;
+import java.util.Collection;
+import java.util.Set;
+import java.util.function.Function;
 import net.kyori.adventure.audience.MessageType;
 import net.kyori.adventure.identity.Identity;
 import net.kyori.adventure.key.Key;
+import net.kyori.adventure.permission.PermissionChecker;
 import net.kyori.adventure.platform.facet.Facet;
 import net.kyori.adventure.platform.facet.FacetBase;
+import net.kyori.adventure.platform.facet.FacetPointers;
 import net.kyori.adventure.sound.SoundStop;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.util.TriState;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.SoundCategory;
@@ -39,20 +45,17 @@ import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarFlag;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
-import java.util.Set;
-import java.util.function.Function;
-
+import static net.kyori.adventure.platform.bukkit.BukkitComponentSerializer.legacy;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.findClass;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.hasClass;
+import static net.kyori.adventure.platform.bukkit.MinecraftReflection.hasMethod;
 import static net.kyori.adventure.platform.facet.Knob.logUnsupported;
-import static net.kyori.adventure.text.serializer.craftbukkit.BukkitComponentSerializer.legacy;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.findClass;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.hasClass;
-import static net.kyori.adventure.text.serializer.craftbukkit.MinecraftReflection.hasMethod;
 
 class BukkitFacet<V extends CommandSender> extends FacetBase<V> {
   protected BukkitFacet(final @Nullable Class<? extends V> viewerClass) {
@@ -64,9 +67,8 @@ class BukkitFacet<V extends CommandSender> extends FacetBase<V> {
       super(viewerClass);
     }
 
-    @NotNull
     @Override
-    public String createMessage(final @NotNull V viewer, final @NotNull Component message) {
+    public @NotNull String createMessage(final @NotNull V viewer, final @NotNull Component message) {
       return legacy().serialize(message);
     }
   }
@@ -87,15 +89,13 @@ class BukkitFacet<V extends CommandSender> extends FacetBase<V> {
       super(Player.class);
     }
 
-    @NotNull
     @Override
-    public Vector createPosition(final @NotNull Player viewer) {
+    public @NotNull Vector createPosition(final @NotNull Player viewer) {
       return viewer.getLocation().toVector();
     }
 
-    @NotNull
     @Override
-    public Vector createPosition(final double x, final double y, final double z) {
+    public @NotNull Vector createPosition(final double x, final double y, final double z) {
       return new Vector(x, y, z);
     }
   }
@@ -114,17 +114,17 @@ class BukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
     @Override
     public void stopSound(final @NotNull Player viewer, final @NotNull SoundStop stop) {
-      if(STOP_SUPPORTED) {
+      if (STOP_SUPPORTED) {
         final String name = name(stop.sound());
         viewer.stopSound(name);
       }
     }
 
     protected static @NotNull String name(final @Nullable Key name) {
-      if(name == null) {
+      if (name == null) {
         return "";
       }
-      if(KEY_SUPPORTED) { // Sound format changed to use identifiers
+      if (KEY_SUPPORTED) { // Sound format changed to use identifiers
         return name.asString();
       } else {
         return name.value();
@@ -143,7 +143,7 @@ class BukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @Override
     public void playSound(final @NotNull Player viewer, final net.kyori.adventure.sound.@NotNull Sound sound, final @NotNull Vector vector) {
       final SoundCategory category = this.category(sound.source());
-      if(category == null) {
+      if (category == null) {
         super.playSound(viewer, sound, vector);
       } else {
         final String name = name(sound.name());
@@ -154,7 +154,7 @@ class BukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @Override
     public void stopSound(final @NotNull Player viewer, final @NotNull SoundStop stop) {
       final SoundCategory category = this.category(stop.source());
-      if(category == null) {
+      if (category == null) {
         super.stopSound(viewer, stop);
       } else {
         final String name = name(stop.sound());
@@ -163,28 +163,28 @@ class BukkitFacet<V extends CommandSender> extends FacetBase<V> {
     }
 
     private @Nullable SoundCategory category(final net.kyori.adventure.sound.Sound.@Nullable Source source) {
-      if(source == null) {
+      if (source == null) {
         return null;
       }
-      if(source == net.kyori.adventure.sound.Sound.Source.MASTER) {
+      if (source == net.kyori.adventure.sound.Sound.Source.MASTER) {
         return SoundCategory.MASTER;
-      } else if(source == net.kyori.adventure.sound.Sound.Source.MUSIC) {
+      } else if (source == net.kyori.adventure.sound.Sound.Source.MUSIC) {
         return SoundCategory.MUSIC;
-      } else if(source == net.kyori.adventure.sound.Sound.Source.RECORD) {
+      } else if (source == net.kyori.adventure.sound.Sound.Source.RECORD) {
         return SoundCategory.RECORDS;
-      } else if(source == net.kyori.adventure.sound.Sound.Source.WEATHER) {
+      } else if (source == net.kyori.adventure.sound.Sound.Source.WEATHER) {
         return SoundCategory.WEATHER;
-      } else if(source == net.kyori.adventure.sound.Sound.Source.BLOCK) {
+      } else if (source == net.kyori.adventure.sound.Sound.Source.BLOCK) {
         return SoundCategory.BLOCKS;
-      } else if(source == net.kyori.adventure.sound.Sound.Source.HOSTILE) {
+      } else if (source == net.kyori.adventure.sound.Sound.Source.HOSTILE) {
         return SoundCategory.HOSTILE;
-      } else if(source == net.kyori.adventure.sound.Sound.Source.NEUTRAL) {
+      } else if (source == net.kyori.adventure.sound.Sound.Source.NEUTRAL) {
         return SoundCategory.NEUTRAL;
-      } else if(source == net.kyori.adventure.sound.Sound.Source.PLAYER) {
+      } else if (source == net.kyori.adventure.sound.Sound.Source.PLAYER) {
         return SoundCategory.PLAYERS;
-      } else if(source == net.kyori.adventure.sound.Sound.Source.AMBIENT) {
+      } else if (source == net.kyori.adventure.sound.Sound.Source.AMBIENT) {
         return SoundCategory.AMBIENT;
-      } else if(source == net.kyori.adventure.sound.Sound.Source.VOICE) {
+      } else if (source == net.kyori.adventure.sound.Sound.Source.VOICE) {
         return SoundCategory.VOICE;
       }
       logUnsupported(this, source);
@@ -217,7 +217,7 @@ class BukkitFacet<V extends CommandSender> extends FacetBase<V> {
       super(Player.class);
       this.bar = Bukkit.createBossBar("", BarColor.PINK, BarStyle.SOLID);
       this.bar.setVisible(false);
-      for(final Player viewer : viewers) {
+      for (final Player viewer : viewers) {
         this.bar.addPlayer(viewer);
       }
     }
@@ -230,7 +230,7 @@ class BukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
     @Override
     public void bossBarNameChanged(final net.kyori.adventure.bossbar.@NotNull BossBar bar, final @NotNull Component oldName, final @NotNull Component newName) {
-      if(!this.bar.getPlayers().isEmpty()) {
+      if (!this.bar.getPlayers().isEmpty()) {
         this.bar.setTitle(this.createMessage(this.bar.getPlayers().get(0), newName));
       }
     }
@@ -243,25 +243,25 @@ class BukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @Override
     public void bossBarColorChanged(final net.kyori.adventure.bossbar.@NotNull BossBar bar, final net.kyori.adventure.bossbar.BossBar.@NotNull Color oldColor, final net.kyori.adventure.bossbar.BossBar.@NotNull Color newColor) {
       final BarColor color = this.color(newColor);
-      if(color != null) {
+      if (color != null) {
         this.bar.setColor(color);
       }
     }
 
     private @Nullable BarColor color(final net.kyori.adventure.bossbar.BossBar.@NotNull Color color) {
-      if(color == net.kyori.adventure.bossbar.BossBar.Color.PINK) {
+      if (color == net.kyori.adventure.bossbar.BossBar.Color.PINK) {
         return BarColor.PINK;
-      } else if(color == net.kyori.adventure.bossbar.BossBar.Color.BLUE) {
+      } else if (color == net.kyori.adventure.bossbar.BossBar.Color.BLUE) {
         return BarColor.BLUE;
-      } else if(color == net.kyori.adventure.bossbar.BossBar.Color.RED) {
+      } else if (color == net.kyori.adventure.bossbar.BossBar.Color.RED) {
         return BarColor.RED;
-      } else if(color == net.kyori.adventure.bossbar.BossBar.Color.GREEN) {
+      } else if (color == net.kyori.adventure.bossbar.BossBar.Color.GREEN) {
         return BarColor.GREEN;
-      } else if(color == net.kyori.adventure.bossbar.BossBar.Color.YELLOW) {
+      } else if (color == net.kyori.adventure.bossbar.BossBar.Color.YELLOW) {
         return BarColor.YELLOW;
-      } else if(color == net.kyori.adventure.bossbar.BossBar.Color.PURPLE) {
+      } else if (color == net.kyori.adventure.bossbar.BossBar.Color.PURPLE) {
         return BarColor.PURPLE;
-      } else if(color == net.kyori.adventure.bossbar.BossBar.Color.WHITE) {
+      } else if (color == net.kyori.adventure.bossbar.BossBar.Color.WHITE) {
         return BarColor.WHITE;
       }
       logUnsupported(this, color);
@@ -271,21 +271,21 @@ class BukkitFacet<V extends CommandSender> extends FacetBase<V> {
     @Override
     public void bossBarOverlayChanged(final net.kyori.adventure.bossbar.@NotNull BossBar bar, final net.kyori.adventure.bossbar.BossBar.@NotNull Overlay oldOverlay, final net.kyori.adventure.bossbar.BossBar.@NotNull Overlay newOverlay) {
       final BarStyle style = this.style(newOverlay);
-      if(style != null) {
+      if (style != null) {
         this.bar.setStyle(style);
       }
     }
 
     private @Nullable BarStyle style(final net.kyori.adventure.bossbar.BossBar.@NotNull Overlay overlay) {
-      if(overlay == net.kyori.adventure.bossbar.BossBar.Overlay.PROGRESS) {
+      if (overlay == net.kyori.adventure.bossbar.BossBar.Overlay.PROGRESS) {
         return BarStyle.SOLID;
-      } else if(overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_6) {
+      } else if (overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_6) {
         return BarStyle.SEGMENTED_6;
-      } else if(overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_10) {
+      } else if (overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_10) {
         return BarStyle.SEGMENTED_10;
-      } else if(overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_12) {
+      } else if (overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_12) {
         return BarStyle.SEGMENTED_12;
-      } else if(overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_20) {
+      } else if (overlay == net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_20) {
         return BarStyle.SEGMENTED_20;
       }
       logUnsupported(this, overlay);
@@ -294,26 +294,26 @@ class BukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
     @Override
     public void bossBarFlagsChanged(final net.kyori.adventure.bossbar.@NotNull BossBar bar, final @NotNull Set<net.kyori.adventure.bossbar.BossBar.Flag> flagsAdded, final @NotNull Set<net.kyori.adventure.bossbar.BossBar.Flag> flagsRemoved) {
-      for(final net.kyori.adventure.bossbar.BossBar.Flag removeFlag : flagsRemoved) {
+      for (final net.kyori.adventure.bossbar.BossBar.Flag removeFlag : flagsRemoved) {
         final BarFlag flag = this.flag(removeFlag);
-        if(flag != null) {
+        if (flag != null) {
           this.bar.removeFlag(flag);
         }
       }
-      for(final net.kyori.adventure.bossbar.BossBar.Flag addFlag : flagsAdded) {
+      for (final net.kyori.adventure.bossbar.BossBar.Flag addFlag : flagsAdded) {
         final BarFlag flag = this.flag(addFlag);
-        if(flag != null) {
+        if (flag != null) {
           this.bar.addFlag(flag);
         }
       }
     }
 
     private @Nullable BarFlag flag(final net.kyori.adventure.bossbar.BossBar.@NotNull Flag flag) {
-      if(flag == net.kyori.adventure.bossbar.BossBar.Flag.DARKEN_SCREEN) {
+      if (flag == net.kyori.adventure.bossbar.BossBar.Flag.DARKEN_SCREEN) {
         return BarFlag.DARKEN_SKY;
-      } else if(flag == net.kyori.adventure.bossbar.BossBar.Flag.PLAY_BOSS_MUSIC) {
+      } else if (flag == net.kyori.adventure.bossbar.BossBar.Flag.PLAY_BOSS_MUSIC) {
         return BarFlag.PLAY_BOSS_MUSIC;
-      } else if(flag == net.kyori.adventure.bossbar.BossBar.Flag.CREATE_WORLD_FOG) {
+      } else if (flag == net.kyori.adventure.bossbar.BossBar.Flag.CREATE_WORLD_FOG) {
         return BarFlag.CREATE_FOG;
       }
       logUnsupported(this, flag);
@@ -363,13 +363,60 @@ class BukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
     @Override
     public void send(final Player viewer, final @Nullable String header, final @Nullable String footer) {
-      if(header != null && footer != null) {
+      if (header != null && footer != null) {
         viewer.setPlayerListHeaderFooter(header, footer);
-      } else if(header != null) {
+      } else if (header != null) {
         viewer.setPlayerListHeader(header);
-      } else if(footer != null) {
+      } else if (footer != null) {
         viewer.setPlayerListFooter(footer);
       }
+    }
+  }
+
+  static final class CommandSenderPointers extends BukkitFacet<CommandSender> implements Facet.Pointers<CommandSender> {
+
+    CommandSenderPointers() {
+      super(CommandSender.class);
+    }
+
+    @Override
+    public void contributePointers(final CommandSender viewer, final net.kyori.adventure.pointer.Pointers.Builder builder) {
+      // Name
+      builder.withDynamic(Identity.NAME, viewer::getName);
+      // Permission (technically up in Permissible but *shrug*)
+      builder.withStatic(PermissionChecker.POINTER, perm -> {
+        if (viewer.isPermissionSet(perm)) {
+          return viewer.hasPermission(perm) ? TriState.TRUE : TriState.FALSE;
+        } else {
+          return TriState.NOT_SET;
+        }
+      });
+    }
+  }
+
+  static final class ConsoleCommandSenderPointers extends BukkitFacet<ConsoleCommandSender> implements Facet.Pointers<ConsoleCommandSender> {
+    ConsoleCommandSenderPointers() {
+      super(ConsoleCommandSender.class);
+    }
+
+    @Override
+    public void contributePointers(final ConsoleCommandSender viewer, final net.kyori.adventure.pointer.Pointers.Builder builder) {
+      builder.withStatic(FacetPointers.TYPE, FacetPointers.Type.CONSOLE);
+    }
+  }
+
+  static final class PlayerPointers extends BukkitFacet<Player> implements Facet.Pointers<Player> {
+
+    PlayerPointers() {
+      super(Player.class);
+    }
+
+    @Override
+    public void contributePointers(final Player viewer, final net.kyori.adventure.pointer.Pointers.Builder builder) {
+      builder.withDynamic(Identity.UUID, viewer::getUniqueId);
+      builder.withDynamic(Identity.DISPLAY_NAME, () -> BukkitComponentSerializer.legacy().deserializeOrNull(viewer.getDisplayName()));
+      builder.withStatic(FacetPointers.TYPE, FacetPointers.Type.PLAYER);
+      builder.withDynamic(FacetPointers.WORLD, () -> Key.key(viewer.getWorld().getName())); // :(
     }
   }
 }

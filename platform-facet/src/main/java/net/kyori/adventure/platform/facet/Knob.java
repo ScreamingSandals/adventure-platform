@@ -23,16 +23,17 @@
  */
 package net.kyori.adventure.platform.facet;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Facet utilities and logging pipeline.
+ *
+ * <p>This is not supported API. Subject to change at any time.</p>
  *
  * @since 4.0.0
  */
@@ -40,17 +41,19 @@ public final class Knob {
   private Knob() {
   }
 
-  private static final String NAMESPACE = "net.kyo".concat("ri.adventure"); // Concat is used to trick package relocations
+  private static final String NAMESPACE =
+    "net.kyo".concat("ri.adventure"); // Concat is used to trick package relocations
   private static final boolean DEBUG = isEnabled("debug", false);
   private static final Set<Object> UNSUPPORTED = new CopyOnWriteArraySet<>();
 
   public static volatile Consumer<String> OUT = System.out::println;
-  public static volatile BiConsumer<String, Throwable> ERR = (message, err) -> {
-    System.err.println(message);
-    if(err != null) {
-      err.printStackTrace(System.err);
-    }
-  };
+  public static volatile BiConsumer<String, Throwable> ERR =
+    (message, err) -> {
+      System.err.println(message);
+      if (err != null) {
+        err.printStackTrace(System.err);
+      }
+    };
 
   /**
    * Gets whether a facet should be enabled.
@@ -63,7 +66,8 @@ public final class Knob {
    * @since 4.0.0
    */
   public static boolean isEnabled(final @NotNull String key, final boolean defaultValue) {
-    return System.getProperty(NAMESPACE + "." + key, Boolean.toString(defaultValue)).equalsIgnoreCase("true");
+    return System.getProperty(NAMESPACE + "." + key, Boolean.toString(defaultValue))
+      .equalsIgnoreCase("true");
   }
 
   /**
@@ -75,7 +79,7 @@ public final class Knob {
    * @since 4.0.0
    */
   public static void logError(final @Nullable Throwable error, final @NotNull String format, final @NotNull Object... arguments) {
-    if(DEBUG) {
+    if (DEBUG) {
       ERR.accept(String.format(format, arguments), error);
     }
   }
@@ -88,7 +92,7 @@ public final class Knob {
    * @since 4.0.0
    */
   public static void logMessage(final @NotNull String format, final @NotNull Object... arguments) {
-    if(DEBUG) {
+    if (DEBUG) {
       OUT.accept(String.format(format, arguments));
     }
   }
@@ -101,7 +105,7 @@ public final class Knob {
    * @since 4.0.0
    */
   public static void logUnsupported(final @NotNull Object facet, final @NotNull Object value) {
-    if(DEBUG && UNSUPPORTED.add(value)) {
+    if (DEBUG && UNSUPPORTED.add(value)) {
       OUT.accept(String.format("Unsupported value '%s' for facet: %s", value, facet));
     }
   }
