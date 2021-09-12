@@ -77,6 +77,10 @@ nmsGen {
         .reqConstructor(String, FriendlyByteBuf)
     reqClass('net.minecraft.network.protocol.game.ClientboundBossEventPacket$Operation')
         .reqEnumField('UPDATE_NAME')
+    var Vec3D = reqClass('net.minecraft.world.phys.Vec3')
+        .reqConstructor(double, double, double)
+    reqClass('net.minecraft.network.protocol.game.ClientboundCustomSoundPacket')
+        .reqConstructor(ResourceLocation, SoundSource, Vec3D, float, float)
 }
 
 tasks.getByName('compileJava').dependsOn('generateNmsComponents')

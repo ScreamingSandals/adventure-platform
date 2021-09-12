@@ -333,25 +333,9 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
     private static final Class<?> CLASS_WRITABLE_REGISTRY = WritableRegistryAccessor.getType();
     private static final Class<?> CLASS_SOUND_SOURCE = SoundSourceAccessor.getType();
 
-      private static final Class<?> CLASS_CLIENTBOUND_CUSTOM_SOUND = findClass(
-              findNmsClassName("PacketPlayOutCustomSoundEffect"),
-              findMcClassName("network.protocol.game.ClientboundCustomSoundPacket"),
-              findMcClassName("network.protocol.game.PacketPlayOutCustomSoundEffect")
-      );
-      private static final Class<?> CLASS_SOUND_EFFECT = findClass(
-              findNmsClassName("SoundEffect"),
-              findMcClassName("sounds.SoundEffect"),
-              findMcClassName("sounds.SoundEvent")
-      );
-      private static final Class<?> CLASS_VEC3 = findClass(
-              findNmsClassName("Vec3D"),
-              findMcClassName("world.phys.Vec3D"),
-              findMcClassName("world.phys.Vec3")
-      );
-
     private static final MethodHandle NEW_CLIENTBOUND_ENTITY_SOUND;
-      private static final MethodHandle NEW_CLIENTBOUND_CUSTOM_SOUND = findConstructor(CLASS_CLIENTBOUND_CUSTOM_SOUND, ResourceLocationAccessor.getType(), CLASS_SOUND_SOURCE, CLASS_VEC3, float.class, float.class);
-      private static final MethodHandle NEW_VEC3 = findConstructor(CLASS_VEC3, double.class, double.class, double.class);
+    private static final MethodHandle NEW_CLIENTBOUND_CUSTOM_SOUND;
+    private static final MethodHandle NEW_VEC3;
     private static final MethodHandle NEW_RESOURCE_LOCATION;
     private static final MethodHandle REGISTRY_GET_OPTIONAL;
     private static final MethodHandle SOUND_SOURCE_GET_NAME;
@@ -365,6 +349,22 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
         e.printStackTrace();
       }
       NEW_CLIENTBOUND_ENTITY_SOUND = tr;
+
+      MethodHandle v3 = null;
+      try {
+        v3 = lookup().unreflectConstructor(Vec3Accessor.getConstructor0());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      NEW_VEC3 = v3;
+
+      MethodHandle cs = null;
+      try {
+        cs = lookup().unreflectConstructor(ClientboundCustomSoundPacketAccessor.getConstructor0());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      NEW_CLIENTBOUND_CUSTOM_SOUND = cs;
 
       MethodHandle nrl = null;
       try {
