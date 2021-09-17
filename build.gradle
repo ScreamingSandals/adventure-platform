@@ -56,15 +56,6 @@ subprojects {
   //apply plugin: 'net.kyori.indra.checkstyle'
   //apply plugin: 'net.kyori.indra.license-header'
 
-  repositories {
-    mavenCentral()
-    sonatype()
-    maven {
-      name = 'viaversion'
-      url = 'https://repo.viaversion.com'
-    }
-  }
-
   dependencies {
     components {
       withModule("com.destroystokyo.paper:paper-api", BukkitAnnotationsRule)
