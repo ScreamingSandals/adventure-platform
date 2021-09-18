@@ -7,7 +7,7 @@ dependencies {
   api("net.kyori:adventure-text-serializer-gson:${rootProject.adventure}") {
     exclude group: "com.google.code.gson"
   }
-  implementation("net.kyori:adventure-text-serializer-gson-legacy-impl:${rootProject.adventure}") {
+  api("net.kyori:adventure-text-serializer-gson-legacy-impl:${rootProject.adventure}") {
     exclude group: "com.google.code.gson"
   }
 

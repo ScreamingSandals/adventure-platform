@@ -1266,24 +1266,39 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
   }
 
   static class TabList extends PacketFacet<Player> implements Facet.TabList<Player, Object> {
-    private static final Class<?> CLIENTBOUND_TAB_LIST_PACKET = findClass(
-      findNmsClassName("PacketPlayOutPlayerListHeaderFooter"),
-      findMcClassName("network.protocol.game.PacketPlayOutPlayerListHeaderFooter"),
-      findMcClassName("network.protocol.game.ClientboundTabListPacket")
-    );
-    private static final @Nullable MethodHandle CLIENTBOUND_TAB_LIST_PACKET_CTOR_PRE_1_17 = findConstructor(CLIENTBOUND_TAB_LIST_PACKET);
-    protected static final @Nullable MethodHandle CLIENTBOUND_TAB_LIST_PACKET_CTOR = findConstructor(CLIENTBOUND_TAB_LIST_PACKET, CLASS_CHAT_COMPONENT, CLASS_CHAT_COMPONENT);
+    private static final Class<?> CLIENTBOUND_TAB_LIST_PACKET = ClientboundTabListPacketAccessor.getType();
+    private static final @Nullable MethodHandle CLIENTBOUND_TAB_LIST_PACKET_CTOR_PRE_1_17;
+    protected static final @Nullable MethodHandle CLIENTBOUND_TAB_LIST_PACKET_CTOR;
+
+    static {
+      MethodHandle ctor = null;
+      try {
+         ctor = lookup().unreflectConstructor(ClientboundTabListPacketAccessor.getConstructor0());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      CLIENTBOUND_TAB_LIST_PACKET_CTOR_PRE_1_17 = ctor;
+
+      MethodHandle ctor2 = null;
+      try {
+        ctor2 = lookup().unreflectConstructor(ClientboundTabListPacketAccessor.getConstructor1());
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+      CLIENTBOUND_TAB_LIST_PACKET_CTOR = ctor2;
+    }
+
     // Fields added by spigot -- names stable
     private static final @Nullable Field CRAFT_PLAYER_TAB_LIST_HEADER = findField(CLASS_CRAFT_PLAYER, "playerListHeader");
     private static final @Nullable Field CRAFT_PLAYER_TAB_LIST_FOOTER = findField(CLASS_CRAFT_PLAYER, "playerListFooter");
 
     protected static final @Nullable MethodHandle CLIENTBOUND_TAB_LIST_PACKET_SET_HEADER = first(
       findSetterOf(findField(CLIENTBOUND_TAB_LIST_PACKET, PaperFacet.NATIVE_COMPONENT_CLASS, "adventure$header")),
-      findSetterOf(findField(CLIENTBOUND_TAB_LIST_PACKET, CLASS_CHAT_COMPONENT, "header", "a"))
+      findSetterOf(ClientboundTabListPacketAccessor.getFieldHeader())
     );
     protected static final @Nullable MethodHandle CLIENTBOUND_TAB_LIST_PACKET_SET_FOOTER = first(
       findSetterOf(findField(CLIENTBOUND_TAB_LIST_PACKET, PaperFacet.NATIVE_COMPONENT_CLASS, "adventure$footer")),
-      findSetterOf(findField(CLIENTBOUND_TAB_LIST_PACKET, CLASS_CHAT_COMPONENT, "footer", "b"))
+      findSetterOf(ClientboundTabListPacketAccessor.getFieldFooter())
     );
 
     private static MethodHandle first(final MethodHandle... handles) {
@@ -1342,11 +1357,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
   }
 
   static final class Translator extends FacetBase<Server> implements FacetComponentFlattener.Translator<Server> {
-    private static final Class<?> CLASS_LANGUAGE = MinecraftReflection.findClass(
-      findNmsClassName("LocaleLanguage"),
-      findMcClassName("locale.LocaleLanguage"),
-      findMcClassName("locale.Language")
-    );
+    private static final Class<?> CLASS_LANGUAGE = LanguageAccessor.getType();
     private static final MethodHandle LANGUAGE_GET_INSTANCE;
     private static final MethodHandle LANGUAGE_GET_OR_DEFAULT;
 
