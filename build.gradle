@@ -21,7 +21,7 @@ ext.adventure = "4.9.1"
 
 allprojects {
   group 'org.screamingsandals'
-  version '4.0.0'
+  version '4.0.1-SNAPSHOT'
 }
 
 
