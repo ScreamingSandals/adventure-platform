@@ -1,4 +1,4 @@
-apply plugin: 'org.screamingsandals.nms'
+apply plugin: 'org.screamingsandals.nms-mapper'
 
 sourceSets.main.java.srcDirs += 'src/generated/java'
 

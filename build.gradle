@@ -1,8 +1,8 @@
 buildscript {
   ext {
     //indraVersion = '2.0.6'
-    pluginBuilderVersion = '1.0.50'
-    nmsMapperVersion = '1.0.14'
+    pluginBuilderVersion = '1.0.73'
+    nmsMapperVersion = '1.1.1'
   }
 }
 
