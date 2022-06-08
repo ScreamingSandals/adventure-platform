@@ -197,15 +197,22 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
   private static final @Nullable Object MESSAGE_TYPE_SYSTEM = Optional.ofNullable(ChatTypeAccessor.getFieldSYSTEM()).orElse(1);
   private static final @Nullable Object MESSAGE_TYPE_ACTIONBAR = Optional.ofNullable(ChatTypeAccessor.getFieldGAME_INFO()).orElse(1);
 
+  private static final boolean chatPacket119;
   private static final @Nullable MethodHandle LEGACY_CHAT_PACKET_CONSTRUCTOR; // (IChatBaseComponent, byte)
-  private static final @Nullable MethodHandle CHAT_PACKET_CONSTRUCTOR; // (ChatMessageType, IChatBaseComponent, UUID) -> PacketPlayOutChat
+  private static final @Nullable MethodHandle CHAT_PACKET_CONSTRUCTOR; // (ChatMessageType, IChatBaseComponent, UUID) -> PacketPlayOutChat; since 1.19 same as legacy
 
   static {
     MethodHandle legacyChatPacketConstructor = null;
     MethodHandle chatPacketConstructor = null;
 
+    boolean chatPacket119a = false;
     try {
       if(CLASS_CHAT_COMPONENT != null) {
+        if (ClientboundSystemChatPacketAccessor.getType() != null) {
+          // 1.19
+          legacyChatPacketConstructor = chatPacketConstructor = lookup().unreflectConstructor(ClientboundSystemChatPacketAccessor.getConstructor0());
+          chatPacket119a = true;
+        } else {
         final Class<?> chatPacketClass = ClientboundChatPacketAccessor.getType();
         // ClientboundChatPacket constructor changed for 1.16
         try {
@@ -227,6 +234,8 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
         if(legacyChatPacketConstructor == null) { // 1.7 paper protocol hack?
           legacyChatPacketConstructor = findConstructor(chatPacketClass, CLASS_CHAT_COMPONENT, int.class);
         }
+
+        }
       }
     } catch (final Throwable error) {
       logError(error, "Failed to initialize ClientboundChatPacket constructor");
@@ -234,6 +243,7 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
     CHAT_PACKET_CONSTRUCTOR = chatPacketConstructor;
     LEGACY_CHAT_PACKET_CONSTRUCTOR = legacyChatPacketConstructor;
+    chatPacket119 = chatPacket119a;
   }
 
   static class Chat extends PacketFacet<CommandSender> implements Facet.Chat<CommandSender, Object> {
@@ -244,11 +254,21 @@ class CraftBukkitFacet<V extends CommandSender> extends FacetBase<V> {
 
     @Override
     public void sendMessage(final @NotNull CommandSender viewer, final @NotNull Identity source, final @NotNull Object message, final @NotNull MessageType type) {
-      final Object messageType = type == MessageType.CHAT ? MESSAGE_TYPE_CHAT : MESSAGE_TYPE_SYSTEM;
-      try {
-        this.sendMessage(viewer, CHAT_PACKET_CONSTRUCTOR.invoke(message, messageType, source.uuid()));
-      } catch (final Throwable error) {
-        logError(error, "Failed to invoke PacketPlayOutChat constructor: %s %s", message, messageType);
+      if (chatPacket119) {
+        // let's do something evil and use just system messages
+        var messageType = type == MessageType.CHAT ? 0 : 1;
+        try {
+          this.sendMessage(viewer, CHAT_PACKET_CONSTRUCTOR.invoke(message, messageType));
+        } catch( final Throwable error){
+          logError(error, "Failed to invoke PacketPlayOutChat constructor: %s %s", message, messageType);
+        }
+      } else {
+        final Object messageType = type == MessageType.CHAT ? MESSAGE_TYPE_CHAT : MESSAGE_TYPE_SYSTEM;
+        try {
+          this.sendMessage(viewer, CHAT_PACKET_CONSTRUCTOR.invoke(message, messageType, source.uuid()));
+        } catch( final Throwable error){
+          logError(error, "Failed to invoke PacketPlayOutChat constructor: %s %s", message, messageType);
+        }
       }
     }
   }

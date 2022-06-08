@@ -1,4 +1,4 @@
-apply plugin: 'org.screamingsandals.nms'
+apply plugin: 'org.screamingsandals.nms-mapper'
 
 sourceSets.main.java.srcDirs += 'src/generated/java'
 
@@ -19,14 +19,16 @@ nmsGen {
     reqClass('net.minecraft.server.level.ServerPlayer')
             .reqField('connection')
     var ChatType = reqClass('net.minecraft.network.chat.ChatType')
-            .reqEnumField('CHAT')
-            .reqEnumField('SYSTEM')
-            .reqEnumField('GAME_INFO')
+            .reqEnumField('mojang:CHAT:1.18')
+            .reqEnumField('mojang:SYSTEM:1.18')
+            .reqEnumField('mojang:GAME_INFO:1.18')
     reqClass('net.minecraft.network.protocol.game.ClientboundChatPacket')
             .reqConstructor(Component)
             .reqConstructor(Component, byte)
             .reqConstructor(Component, ChatType)
             .reqConstructor(Component, ChatType, UUID)
+    reqClass('net.minecraft.network.protocol.game.ClientboundSystemChatPacket')
+            .reqConstructor(Component, int)
     var TitleAction = reqClass('net.minecraft.network.protocol.game.ClientboundSetTitlesPacket$Type')
             .reqEnumField('TITLE')
             .reqEnumField('SUBTITLE')

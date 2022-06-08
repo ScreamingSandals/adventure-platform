@@ -2,7 +2,7 @@ buildscript {
   ext {
     //indraVersion = '2.0.6'
     pluginBuilderVersion = '1.0.50'
-    nmsMapperVersion = '1.0.5'
+    nmsMapperVersion = '1.2.1'
   }
 }
 
@@ -21,7 +21,7 @@ ext.adventure = "4.9.1"
 
 allprojects {
   group 'org.screamingsandals'
-  version '4.0.1-SNAPSHOT'
+  version '4.0.2-SNAPSHOT'
 }
 
 
