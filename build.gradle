@@ -1,7 +1,7 @@
 buildscript {
   ext {
     //indraVersion = '2.0.6'
-    pluginBuilderVersion = '1.0.50'
+    pluginBuilderVersion = '1.0.73'
     nmsMapperVersion = '1.2.1'
   }
 }
@@ -21,7 +21,7 @@ ext.adventure = "4.9.1"
 
 allprojects {
   group 'org.screamingsandals'
-  version '4.0.2-SNAPSHOT'
+  version '4.0.3-SNAPSHOT'
 }
 
 
@@ -38,8 +38,8 @@ class BukkitAnnotationsRule implements ComponentMetadataRule {
   void execute(final ComponentMetadataContext componentMetadataContext) {
     componentMetadataContext.details.withVariant("compile") {
       withDependencies {
-        add("com.google.errorprone:error_prone_annotations:2.4.0")
-        add("org.jetbrains:annotations:20.1.0")
+        add("com.google.errorprone:error_prone_annotations:2.10.0")
+        add("org.jetbrains:annotations:23.0.0")
       }
     }
   }
@@ -62,8 +62,8 @@ subprojects {
     }
     annotationProcessor 'ca.stellardrift:contract-validator:1.0.1'
     //checkstyle 'ca.stellardrift:stylecheck:0.1'
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.0'
-    testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.8.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
   }
 
   /*indra {
